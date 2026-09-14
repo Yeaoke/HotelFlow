@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -47,5 +48,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Query("SELECT r FROM Reservation r WHERE r.id = :id")
         java.util.Optional<Reservation> findByIdForUpdate(
                 @Param("id") UUID id
+        );
+
+        @Modifying
+        @Query("""
+                UPDATE Reservation r
+                SET r.status = 'EXPIRED'
+                WHERE r.endDate < :endDate
+                AND r.status = 'ACTIVE'
+        """)
+        int findExpiredReservation(
+                @Param("endDate") LocalDate endDate
         );
 }

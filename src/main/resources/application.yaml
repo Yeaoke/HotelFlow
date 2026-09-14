@@ -12,7 +12,7 @@ spring:
             idle-timeout: 300000                    # время бездействия
             max-lifetime: 1200000                   # время жизни соединения в пуле
             pool-name: "ReservationSystemPool"
-            auto-commit: true                       
+            auto-commit: true
 
 server:
     port: 8080
@@ -26,7 +26,7 @@ spring:
     datasource:
         url: "jdbc:postgresql://localhost:5432/postgres"
         username: "postgres"
-        password: "MaL8033038"
+        password: "postgres"
         driver-class-name: "org.postgresql.Driver"
     jpa:
         hibernate:

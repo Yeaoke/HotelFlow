@@ -73,7 +73,7 @@ public class ReservationService {
         reservation.setStartDate(dto.start_date());
         reservation.setEndDate(dto.end_date());
         reservation.setPrice(calculatePrice(room, dto.start_date(), dto.end_date()));
-        reservation.setStatus(ReservationStatus.APPROVED);
+        reservation.setStatus(ReservationStatus.RESERVED);
 
         Reservation saved = reservationRepository.save(reservation);
 
@@ -232,6 +232,11 @@ public class ReservationService {
         }
     }
 
+    @Transactional
+    public int expireReservations() {
+        return reservationRepository.findExpiredReservation(LocalDate.now());
+    }
+
     private void applyReservationChanges(
             Reservation reservation,
             Room room,
@@ -273,13 +278,13 @@ public class ReservationService {
 
         if (dto.start_date() == null || dto.end_date() == null) {
             throw new DaysAmountException(
-                    "Start date and end date can't be null"
+                "Start date and end date can't be null"
             );
         }
 
         if (!dto.start_date().isBefore(dto.end_date())) {
             throw new DaysAmountException(
-                    "Start date must be before end date"
+                "Start date must be before end date"
             );
         }
 
