@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.example.app.dto.user.input.UserRequest;
 import com.example.app.models.User;
 import com.example.app.repos.UserRepository;
+import com.example.app.security.UserInfo.UserDetails;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -21,27 +22,31 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public User createUser(UserRequest dto) {
+    public User updateDetailsOfUser(
+        // часть токена jwt - payload
+        UserRequest dto
+    ) {
 
         log.info(
-                "Creating user: email={}, thread={}",
+                "Updating info about user: email={}, thread={}",
                 dto.email(),
                 Thread.currentThread().getName()
         );
 
         User user = new User();
 
-        user.setName(dto.name());
-        user.setEmail(dto.email());
-        user.setEmailVerificationTime(LocalDate.now());
-        user.setPassword(dto.password());
-        user.setPhoneNumber(dto.phoneNumber());
+        UserDetails details = new UserDetails();
 
-        User savedUser = userRepository.save(user);
+        details.setName(dto.name());
+        details.setEmail(dto.email());
+        details.setEmailVerificationTime(LocalDate.now());
+        details.setPhoneNumber(dto.phoneNumber());
+
+        UserDetails savedUser = userRepository.save(details);
 
         log.info(
-                "User created: id={}",
-                savedUser.getId()
+                "User updated: id={}"
+                //savedUser.getId()
         );
 
         return savedUser;

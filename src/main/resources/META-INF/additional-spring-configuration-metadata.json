@@ -1,5 +1,27 @@
-{"properties": [{
-  "name": "spring.jpa.hibernate.show-sql",
-  "type": "java.lang.String",
-  "description": "A description for 'spring.jpa.hibernate.show-sql'"
-}]}
+{"properties": [
+  {
+    "name": "spring.jpa.hibernate.show-sql",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.jpa.hibernate.show-sql'"
+  },
+  {
+    "name": "spring.security.jwt",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.security.jwt'"
+  },
+  {
+    "name": "security.jwt.refresh_token_expiration",
+    "type": "java.lang.String",
+    "description": "A description for 'security.jwt.refresh_token_expiration'"
+  },
+  {
+    "name": "security.jwt.access_token_expiration",
+    "type": "java.lang.String",
+    "description": "A description for 'security.jwt.access_token_expiration'"
+  },
+  {
+    "name": "security.jwt.secret_key",
+    "type": "java.lang.String",
+    "description": "A description for 'security.jwt.secret_key'"
+  }
+]}

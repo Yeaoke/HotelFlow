@@ -3,7 +3,7 @@ package com.example.app.dto.user.output;
 import java.time.LocalDate;
 import java.util.UUID;
 
-public record UserResponse(
+public record UserInfoResponse(
     UUID id,
 
     String name,
