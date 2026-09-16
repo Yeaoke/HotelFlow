@@ -2,47 +2,49 @@ package com.example.app.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.app.repos.IUserService;
 import com.example.app.security.handlers.CustomAccessDeniedHandler;
 import com.example.app.security.handlers.CustomLogoutHandler;
-import com.example.app.services.UserService;
+import com.example.app.security.jwt.JwtFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final JwtService jwtService;
+    private final JwtFilter jwtFilter;
 
-    private final UserService userService;
+    private final IUserService IuserService;
 
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     
     private final CustomLogoutHandler customLogouthandler;
 
     public SecurityConfig(
-        JwtService jwtService,
-        UserService userService,
+        IUserService IuserService,
         CustomLogoutHandler logoutHandler,
-        CustomAccessDeniedHandler accessDeniedHandler
+        CustomAccessDeniedHandler accessDeniedHandler, JwtFilter jwtFilter
     ) {
-        this.jwtService = jwtService;
-        this.userService = userService;
+        this.IuserService = IuserService;
         this.customAccessDeniedHandler = accessDeniedHandler;
         this.customLogouthandler = logoutHandler;
+        this.jwtFilter = jwtFilter;
     }
 
-    /*
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @Bean SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         
         http.csrf(AbstractHttpConfigurer::disable);
 
@@ -52,20 +54,29 @@ public class SecurityConfig {
                     .permitAll();
                 auth.requestMatchers("/admin/**").hasAuthority("ADMIN");
                 auth.anyRequest().authenticated();
+            })
+            .userDetailsService(IuserService)
+            .exceptionHandling(e -> {
+                e.accessDeniedHandler(customAccessDeniedHandler);
+                e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
+            })
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .logout(log -> {
+                log.logoutUrl("/logout")
+                .addLogoutHandler(customLogouthandler)
+                .logoutSuccessHandler((request, response, auth) -> SecurityContextHolder.getContext());
             });
-            .userService.
     
         return http.build();
     }
-    */
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
+
+    @Bean PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) {
-        return cfg.getAuthenticationManager();
-    } 
+    @Bean AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) {
+        return configuration.getAuthenticationManager();
+    }
 }

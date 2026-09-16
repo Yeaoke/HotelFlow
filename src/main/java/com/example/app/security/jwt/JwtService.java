@@ -1,4 +1,4 @@
-package com.example.app.security;
+package com.example.app.security.jwt;
 
 import java.util.Date;
 import java.util.function.Function;

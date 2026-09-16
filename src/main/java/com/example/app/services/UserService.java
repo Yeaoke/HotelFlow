@@ -26,16 +26,9 @@ public class UserService {
         UserInfoRequest dto
     ) {
 
-        log.info(
-                "Updating info about user: email={}, thread={}",
-                dto.email(),
-                Thread.currentThread().getName()
-        );
-
         User userDetails = new User();
 
         userDetails.setName(dto.name());
-        userDetails.setEmail(dto.email());
         userDetails.setEmailVerificationTime(LocalDate.now());
         userDetails.setPhoneNumber(dto.phoneNumber());
 

@@ -1,6 +1,5 @@
 package com.example.app.controllers;
 
-import com.example.app.dto.user.input.UserInfoRequest;
 import com.example.app.dto.user.output.UserInfoResponse;
 import com.example.app.models.User;
 import com.example.app.services.UserService;
@@ -21,15 +20,6 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
-
-    @PostMapping("/create")
-    public ResponseEntity<User> createUser(
-        @RequestBody UserInfoRequest dto
-    ) {
-        User user = userService.createUser(dto);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(user);
-    }
 
     @Profile("dev")
     @GetMapping
