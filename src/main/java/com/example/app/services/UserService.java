@@ -7,10 +7,9 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
-import com.example.app.dto.user.input.UserRequest;
+import com.example.app.dto.user.input.UserInfoRequest;
 import com.example.app.models.User;
 import com.example.app.repos.UserRepository;
-import com.example.app.security.UserInfo.UserDetails;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -24,7 +23,7 @@ public class UserService {
 
     public User updateDetailsOfUser(
         // часть токена jwt - payload
-        UserRequest dto
+        UserInfoRequest dto
     ) {
 
         log.info(
@@ -33,16 +32,14 @@ public class UserService {
                 Thread.currentThread().getName()
         );
 
-        User user = new User();
+        User userDetails = new User();
 
-        UserDetails details = new UserDetails();
+        userDetails.setName(dto.name());
+        userDetails.setEmail(dto.email());
+        userDetails.setEmailVerificationTime(LocalDate.now());
+        userDetails.setPhoneNumber(dto.phoneNumber());
 
-        details.setName(dto.name());
-        details.setEmail(dto.email());
-        details.setEmailVerificationTime(LocalDate.now());
-        details.setPhoneNumber(dto.phoneNumber());
-
-        UserDetails savedUser = userRepository.save(details);
+        User savedUser = userRepository.save(userDetails);
 
         log.info(
                 "User updated: id={}"
@@ -78,5 +75,16 @@ public class UserService {
 
     public void deleteUser(UUID id) {
         userRepository.deleteById(id);
+    }
+
+    public User getUserByUsername(String username) {
+        Optional<User> extractUser = userRepository.findByUsername(username);
+        
+        if (extractUser.isEmpty()) {
+            log.info("Can't find user with username - {}", username);
+            throw new RuntimeException();
+        }
+
+        return extractUser.get();
     }
 }
