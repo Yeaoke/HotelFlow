@@ -1,4 +1,4 @@
-package com.example.app.security.Token.repo;
+package com.example.app.security.jwt.Token.repo;
 
 import java.util.List;
 import java.util.Optional;
@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-import com.example.app.security.Token.model.Token;
+import com.example.app.security.jwt.Token.model.Token;
 
 public interface TokenRepository extends JpaRepository<Token, UUID> {
 

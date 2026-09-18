@@ -1,18 +1,26 @@
 spring:
-    datasource:
-        url: "jdbc:postgresql://localhost:5432/postgres"
-        username: "postgres"
-        password: "postgres"
-        driver-class-name: "org.postgresql.Driver"
+    dynamic:
+        datasource:
+            tenant-a:
+                url: "jdbc:postgresql://localhost:5432/reservation-info"
+                username: "postgres"
+                password: "postgres"
+                driver-class-name: "org.postgresql.Driver"
 
-        hikari:
-            connection-timeout: 20000               # время подключения
-            minimum-idle: 5                         # минимум потоков одновременно
-            maximum-pool-size: 12                   # максимум потоков одновременно
-            idle-timeout: 300000                    # время бездействия
-            max-lifetime: 1200000                   # время жизни соединения в пуле
-            pool-name: "ReservationSystemPool"
-            auto-commit: true
+                hikari:
+                    connection-timeout: 20000               # время подключения
+                    minimum-idle: 5                         # минимум потоков одновременно
+                    maximum-pool-size: 12                   # максимум потоков одновременно
+                    idle-timeout: 300000                    # время бездействия
+                    max-lifetime: 1200000                   # время жизни соединения в пуле
+                    pool-name: "ReservationSystemPool"
+                    auto-commit: true
+            tenant-b:
+                url: "jdbc:postgresql://localhost:5432/token-info"
+                    username: "postgres"
+                    password: "postgres"
+                    driver-class-name: "org.postgresql.Driver"
+
 security:
     jwt:
         secret_key: 4eeab38d706831be4b36612ead768ef8182d1dd6f0e14e5dc934652e297fb16a

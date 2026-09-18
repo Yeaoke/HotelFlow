@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.example.app.models.User;
-import com.example.app.security.Token.repo.TokenRepository;
+import com.example.app.security.jwt.Token.repo.TokenRepository;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtBuilder;

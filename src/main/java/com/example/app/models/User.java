@@ -9,8 +9,8 @@ import org.hibernate.annotations.UuidGenerator;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.example.app.security.Token.model.Token;
 import com.example.app.security.UserRole.UserRole;
+import com.example.app.security.jwt.Token.model.Token;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

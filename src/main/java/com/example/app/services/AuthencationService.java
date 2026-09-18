@@ -13,10 +13,10 @@ import com.example.app.dto.auth.login.input.LoginRequest;
 import com.example.app.dto.auth.login.output.AuthResponse;
 import com.example.app.models.User;
 import com.example.app.repos.UserRepository;
-import com.example.app.security.Token.model.Token;
-import com.example.app.security.Token.repo.TokenRepository;
 import com.example.app.security.UserRole.UserRole;
 import com.example.app.security.jwt.JwtService;
+import com.example.app.security.jwt.Token.model.Token;
+import com.example.app.security.jwt.Token.repo.TokenRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

@@ -1,4 +1,4 @@
-package com.example.app.security.Token.model;
+package com.example.app.security.jwt.Token.model;
 
 import java.util.UUID;
 

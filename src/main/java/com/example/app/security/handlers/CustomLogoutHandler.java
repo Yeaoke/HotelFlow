@@ -4,8 +4,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.stereotype.Component;
 
-import com.example.app.security.Token.model.Token;
-import com.example.app.security.Token.repo.TokenRepository;
+import com.example.app.security.jwt.Token.model.Token;
+import com.example.app.security.jwt.Token.repo.TokenRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
