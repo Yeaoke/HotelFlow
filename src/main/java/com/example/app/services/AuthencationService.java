@@ -17,6 +17,7 @@ import com.example.app.security.UserRole.UserRole;
 import com.example.app.security.jwt.JwtService;
 import com.example.app.security.jwt.Token.model.Token;
 import com.example.app.security.jwt.Token.repo.TokenRepository;
+import com.example.app.security.jwt.Token.services.TokenCacheService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,12 +28,16 @@ import lombok.extern.log4j.Log4j2;
 @Service
 @RequiredArgsConstructor
 public class AuthencationService {
-    
+
+    private final Long TTLinMin = 10L;
+
     private final PasswordEncoder passwordEncoder;
 
     private final JwtService jwtService;
 
     private final UserRepository userRepository;
+
+    private final TokenCacheService tokenCacheService;
 
     private final TokenRepository tokenRepository;
 
@@ -66,6 +71,15 @@ public class AuthencationService {
 
     public void saveUserToken(String accessToken, String refreshToken, User user) {
         Token token = new Token();
+
+        String userId = user.getId().toString();
+        
+        tokenCacheService.saveCachedAccessRefreshTokens(
+            accessToken, 
+            refreshToken, 
+            userId, 
+            TTLinMin
+        );
 
         token.setAccessToken(accessToken);
         token.setRefreshToken(refreshToken);
