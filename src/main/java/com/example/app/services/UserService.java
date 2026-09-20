@@ -8,6 +8,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import com.example.app.dto.user.input.UserInfoRequest;
+import com.example.app.dto.user.output.UserInfoResponse;
+import com.example.app.exceptions.UserNotFoundException;
 import com.example.app.models.User;
 import com.example.app.repos.UserRepository;
 
@@ -21,24 +23,34 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public User updateDetailsOfUser(
-        // часть токена jwt - payload
+    public void updateUserDetails(
+        UUID userId,
         UserInfoRequest dto
     ) {
+        User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new UserNotFoundException("User not found with id - " + userId));
+        log.info("User with id - {} found for update", userId);
+                        
+        user.setFirstname(dto.firstname());
+        user.setLastname(dto.lastname());
+        user.setPhoneNumber(dto.phoneNumber());
+        
+        userRepository.save(user);
+        log.info("User: id - {}, updated", userId);
+    }
 
-        User userDetails = new User();
-
-        userDetails.setName(dto.name());
-        userDetails.setPhoneNumber(dto.phoneNumber());
-
-        User savedUser = userRepository.save(userDetails);
-
-        log.info(
-                "User updated: id={}"
-                //savedUser.getId()
+    public UserInfoResponse getUserProfile(UUID userId) {
+        User user = userRepository.findById(userId)
+                            .orElseThrow(() -> new UserNotFoundException("User not found with id - " + userId));
+            
+        return new UserInfoResponse(
+            user.getId(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getFirstname(),
+            user.getFirstname(),
+            user.getPhoneNumber()
         );
-
-        return savedUser;
     }
 
     public Optional<User> getUserById(UUID id) {

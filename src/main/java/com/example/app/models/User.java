@@ -42,8 +42,11 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
-    @Column(name = "name", columnDefinition = "VARCHAR(10) DEFAULT 'name'")
-    private String name;
+    @Column(name = "firstname", columnDefinition = "VARCHAR(10) DEFAULT 'firstname'")
+    private String firstname;
+
+    @Column(name = "lastname", columnDefinition = "VARCHAR(10) DEFAULT 'lastname'")
+    private String lastname;
 
     @Column(name = "email", unique = true)
     private String email;

@@ -50,11 +50,11 @@ public class AuthencationService {
         user.setPassword(passwordEncoder.encode(register.password()));
 
         log.info(
-        "Creating new user with id - {}, username - {}, email - {}",
-        user.getId(),
-        user.getUsername(),
-        user.getEmail()
-    );
+            "Creating new user with id - {}, username - {}, email - {}",
+            user.getId(),
+            user.getUsername(),
+            user.getEmail()
+        );
 
         user = userRepository.save(user);
 
@@ -75,6 +75,7 @@ public class AuthencationService {
             ));
         
         String accessToken = jwtService.generateAccessToken(user);
+        
         String refreshToken = jwtService.generateRefreshToken(user);
 
         saveUserToken(accessToken, refreshToken, user);

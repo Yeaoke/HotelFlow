@@ -6,9 +6,13 @@ import jakarta.validation.constraints.Size;
 
 public record UserInfoRequest(
 
-    @NotNull(message = "Name can't be empty")
+    @NotNull(message = "Firstname can't be empty")
     @Size(min = 2, max = 100)
-    String name,
+    String firstname,
+
+    @NotNull(message = "Lastname can't be empty")
+    @Size(min = 2, max = 100)
+    String lastname,
 
     @Pattern(
         regexp = "^\\+[1-9]\\d{1,14}$",

@@ -1,68 +1,75 @@
 package com.example.app.controllers;
 
+import com.example.app.dto.auth.login.input.LoginRequest;
+import com.example.app.dto.auth.login.input.RegisterRequest;
+import com.example.app.dto.auth.login.output.LoginResponse;
+import com.example.app.dto.auth.login.output.RegisterResponse;
+import com.example.app.dto.user.input.UserInfoRequest;
 import com.example.app.dto.user.output.UserInfoResponse;
 import com.example.app.models.User;
+import com.example.app.services.AuthencationService;
 import com.example.app.services.UserService;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
+
+
+
+
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/auth")
 public class UserController {
 
     private final UserService userService;
 
-    @Profile("dev")
-    @GetMapping
-    public ResponseEntity<List<UserInfoResponse>> getAllUsers() {
-        List<UserInfoResponse> usersResponse = userService.getAllUsers().stream()
-                .map(this::convertToResponseDTO)
-                .collect(Collectors.toList());
+    private final AuthencationService authencationService;
 
-        return ResponseEntity.status(HttpStatus.OK).body(usersResponse);
+    @PostMapping("/register")
+    public ResponseEntity<RegisterResponse> register(
+        @RequestBody @Valid RegisterRequest registerRequest
+    ) {
+        authencationService.register(registerRequest);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
-
-    @GetMapping("/rooms/{roomId}/owner/{userId}")
-    public ResponseEntity<UserInfoResponse> getUser(
-            @PathVariable UUID roomId,
-            @PathVariable UUID userId) {
+    
+    @GetMapping("/login")
+    public ResponseEntity<LoginResponse> login(
+        @RequestBody @Valid LoginRequest loginRequest
         
-        Optional<User> user = userService.getUserById(userId);
-        
-        if (user.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(convertToResponseDTO(user.get()));
+    ) {
+        authencationService.login(loginRequest);
+        return ResponseEntity.status(HttpStatus.OK).build();
     }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
-        if (userService.getUserById(id).isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
+    
+    @GetMapping("/me")
+    public ResponseEntity<UserInfoResponse> getCurrentUser(
+        Authentication authentication,
+        @RequestBody UserInfoResponse response
+    ) {
+        User user = (User) authentication.getPrincipal();
+    
+        return ResponseEntity.ok(userService.getUserProfile(user.getId()));
     }
+    
 
-    private UserInfoResponse convertToResponseDTO(User user) {
-        return new UserInfoResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getEmailVerificationTime(),
-                null,
-                user.getPhoneNumber()
-        );
+    @PutMapping("/me/update")
+    public ResponseEntity<Void> updateUserProfile(
+        Authentication authentication,
+        @RequestBody UserInfoRequest request
+    ) {
+        User user = (User) authentication.getPrincipal();
+
+        userService.updateUserDetails(user.getId(), request);
+
+        return ResponseEntity.ok().build();
     }
 }
