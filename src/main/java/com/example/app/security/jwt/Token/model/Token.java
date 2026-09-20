@@ -1,14 +1,10 @@
 package com.example.app.security.jwt.Token.model;
 
-import java.util.UUID;
-
-import org.hibernate.annotations.UuidGenerator;
-import org.springframework.data.annotation.Id;
-
 import com.example.app.models.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -24,9 +20,9 @@ import lombok.Setter;
 public class Token {
 
     @Id
-    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
-    @Column(name = "id")
-    private UUID id;
+    @ManyToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
 
     @Column(name = "access_token")
     private String accessToken;
@@ -36,8 +32,4 @@ public class Token {
 
     @Column(name = "is_logged_out")
     private boolean loggedOut;
-
-    @ManyToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
-    private User user;
 }

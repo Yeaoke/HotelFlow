@@ -16,7 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import com.example.app.repos.IUserService;
+import com.example.app.repos.CustomUserDetailsService;
 import com.example.app.security.handlers.CustomAccessDeniedHandler;
 import com.example.app.security.handlers.CustomLogoutHandler;
 import com.example.app.security.jwt.JwtFilter;
@@ -27,18 +27,18 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
 
-    private final IUserService IuserService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     
     private final CustomLogoutHandler customLogouthandler;
 
     public SecurityConfig(
-        IUserService IuserService,
+        CustomUserDetailsService customUserDetailsService,
         CustomLogoutHandler logoutHandler,
         CustomAccessDeniedHandler accessDeniedHandler, JwtFilter jwtFilter
     ) {
-        this.IuserService = IuserService;
+        this.customUserDetailsService = customUserDetailsService;
         this.customAccessDeniedHandler = accessDeniedHandler;
         this.customLogouthandler = logoutHandler;
         this.jwtFilter = jwtFilter;
@@ -55,7 +55,7 @@ public class SecurityConfig {
                 auth.requestMatchers("/admin/**").hasAuthority("ADMIN");
                 auth.anyRequest().authenticated();
             })
-            .userDetailsService(IuserService)
+            .userDetailsService(customUserDetailsService)
             .exceptionHandling(e -> {
                 e.accessDeniedHandler(customAccessDeniedHandler);
                 e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));

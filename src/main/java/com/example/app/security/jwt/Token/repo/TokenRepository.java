@@ -7,9 +7,10 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import com.example.app.models.User;
 import com.example.app.security.jwt.Token.model.Token;
 
-public interface TokenRepository extends JpaRepository<Token, UUID> {
+public interface TokenRepository extends JpaRepository<Token, User> {
 
     @Query("""
         SELECT t

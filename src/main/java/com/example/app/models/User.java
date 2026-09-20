@@ -1,6 +1,5 @@
 package com.example.app.models;
 
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -48,9 +47,6 @@ public class User implements UserDetails {
 
     @Column(name = "email", unique = true)
     private String email;
-
-    @Column(name = "email_verification_time")
-    private LocalDate emailVerificationTime;
     
     @Column(name = "phone_number")
     private String phoneNumber;

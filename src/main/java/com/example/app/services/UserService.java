@@ -1,10 +1,10 @@
 package com.example.app.services;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import com.example.app.dto.user.input.UserInfoRequest;
@@ -29,7 +29,6 @@ public class UserService {
         User userDetails = new User();
 
         userDetails.setName(dto.name());
-        userDetails.setEmailVerificationTime(LocalDate.now());
         userDetails.setPhoneNumber(dto.phoneNumber());
 
         User savedUser = userRepository.save(userDetails);
@@ -79,5 +78,27 @@ public class UserService {
         }
 
         return extractUser.get();
+    }
+
+    public boolean existsByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new UsernameNotFoundException("Not found username - " + username));
+        
+        if (user == null) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public boolean existsByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+            .orElse(null);
+    
+        if (user == null) {
+            return false;
+        }
+
+        return true;
     }
 }
