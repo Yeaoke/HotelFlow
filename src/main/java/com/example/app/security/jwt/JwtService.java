@@ -8,8 +8,8 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.example.app.models.User;
-import com.example.app.security.jwt.Token.repo.TokenRepository;
+import com.example.app.models.main.User;
+import com.example.app.repos.token.TokenRepository;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtBuilder;
@@ -17,7 +17,9 @@ import io.jsonwebtoken.JwtParserBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 @Service
 public class JwtService {
     
@@ -30,7 +32,7 @@ public class JwtService {
     @Value("${security.jwt.refresh_token_expiration}")
     private Long refreshTokenExpiration;
 
-    private final TokenRepository tokenRepository;
+    private TokenRepository tokenRepository;
 
     public JwtService(TokenRepository tokenRepository) {
         this.tokenRepository = tokenRepository;
@@ -42,10 +44,9 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private String generateToken(User user, long expiryTime, String tokenType) {
+    private String generateToken(User user, long expiryTime) {
         JwtBuilder builder = Jwts.builder()
             .subject(user.getUsername())
-            .claim("type", tokenType)
             .issuedAt(new Date(System.currentTimeMillis()))
             .expiration(new Date(System.currentTimeMillis() + expiryTime))
             .signWith(getSigningKey());
@@ -54,11 +55,11 @@ public class JwtService {
     }
 
     public String generateAccessToken(User user) {
-        return generateToken(user, accessTokenExpiration, "access");
+        return generateToken(user, accessTokenExpiration);
     }
 
     public String generateRefreshToken(User user) {
-        return generateToken(user, refreshTokenExpiration, "refresh");
+        return generateToken(user, refreshTokenExpiration);
     }
 
     public Claims extractAllClaims(String token) {
@@ -85,7 +86,7 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    private boolean isTokenValidByExpiration(String token) {
+    private boolean isAccessTokenExpired(String token) {
         return !extractExpiration(token).before(new Date());
     }
 
@@ -93,16 +94,13 @@ public class JwtService {
 
         String username = extractUsername(token);
 
-        String tokenType = extractClaim(token, claims -> claims.get("type", String.class));
-
         boolean isValidToken = tokenRepository
                 .findByAccessToken(token)
                 .map(storedToken -> !storedToken.isLoggedOut())
                 .orElse(false);
 
         return username.equals(user.getUsername())
-                && "access".equals(tokenType)
-                && isTokenValidByExpiration(token)
+                && !isAccessTokenExpired(token)
                 && isValidToken;
     }
 
@@ -110,14 +108,11 @@ public class JwtService {
         
         String username = extractUsername(token);
 
-        String tokenType = extractClaim(token, claims -> claims.get("type", String.class));
-
         boolean isValidRefreshToken = tokenRepository.findByRefreshToken(token)
                 .map(t -> !t.isLoggedOut()).orElse(false);
 
         return username.equals(user.getUsername())
-                && "refresh".equals(tokenType)
-                && isTokenValidByExpiration(token)
+                && isAccessTokenExpired(token)
                 && isValidRefreshToken;
     }
 }

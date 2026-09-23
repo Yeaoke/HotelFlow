@@ -10,8 +10,8 @@ import org.springframework.stereotype.Service;
 import com.example.app.dto.user.input.UserInfoRequest;
 import com.example.app.dto.user.output.UserInfoResponse;
 import com.example.app.exceptions.UserNotFoundException;
-import com.example.app.models.User;
-import com.example.app.repos.UserRepository;
+import com.example.app.models.main.User;
+import com.example.app.repos.main.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;

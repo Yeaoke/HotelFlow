@@ -1,7 +1,7 @@
 package com.example.app.controllers;
 
 import com.example.app.dto.review.input.ReviewRequest;
-import com.example.app.models.Review;
+import com.example.app.models.main.Review;
 import com.example.app.services.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

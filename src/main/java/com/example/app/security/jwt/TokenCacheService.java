@@ -1,4 +1,4 @@
-package com.example.app.security.jwt.Token.services;
+package com.example.app.security.jwt;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;

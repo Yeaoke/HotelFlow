@@ -16,12 +16,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.app.dto.reservation.input.ReservationRequest;
 import com.example.app.exceptions.DaysAmountException;
-import com.example.app.models.Reservation;
-import com.example.app.models.Room;
-import com.example.app.models.User;
-import com.example.app.repos.ReservationRepository;
-import com.example.app.repos.RoomRepository;
-import com.example.app.repos.UserRepository;
+import com.example.app.models.main.Reservation;
+import com.example.app.models.main.Room;
+import com.example.app.models.main.User;
+import com.example.app.repos.main.ReservationRepository;
+import com.example.app.repos.main.RoomRepository;
+import com.example.app.repos.main.UserRepository;
 import com.example.app.services.ReservationService;
 
 @ExtendWith(MockitoExtension.class)

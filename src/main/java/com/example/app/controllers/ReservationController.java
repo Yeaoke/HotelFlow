@@ -3,8 +3,8 @@ package com.example.app.controllers;
 import com.example.app.dto.ReservationStatus;
 import com.example.app.dto.reservation.input.ReservationRequest;
 import com.example.app.dto.reservation.output.ReservationResponse;
-import com.example.app.models.Reservation;
-import com.example.app.models.Review;
+import com.example.app.models.main.Reservation;
+import com.example.app.models.main.Review;
 import com.example.app.services.ReservationService;
 import com.example.app.services.ReviewService;
 

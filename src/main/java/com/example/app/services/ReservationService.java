@@ -16,12 +16,12 @@ import com.example.app.exceptions.ReservationNotFoundException;
 import com.example.app.exceptions.RoomAlreadyReservedException;
 import com.example.app.exceptions.RoomNotFoundException;
 import com.example.app.exceptions.UserNotFoundException;
-import com.example.app.models.Reservation;
-import com.example.app.models.Room;
-import com.example.app.models.User;
-import com.example.app.repos.ReservationRepository;
-import com.example.app.repos.RoomRepository;
-import com.example.app.repos.UserRepository;
+import com.example.app.models.main.Reservation;
+import com.example.app.models.main.Room;
+import com.example.app.models.main.User;
+import com.example.app.repos.main.ReservationRepository;
+import com.example.app.repos.main.RoomRepository;
+import com.example.app.repos.main.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;

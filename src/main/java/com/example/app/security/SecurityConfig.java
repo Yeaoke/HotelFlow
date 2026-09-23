@@ -16,10 +16,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import com.example.app.repos.CustomUserDetailsService;
 import com.example.app.security.handlers.CustomAccessDeniedHandler;
 import com.example.app.security.handlers.CustomLogoutHandler;
 import com.example.app.security.jwt.JwtFilter;
+import com.example.app.services.CustomUserDetailsService;
 
 @Configuration
 @EnableWebSecurity
@@ -32,11 +32,12 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     
     private final CustomLogoutHandler customLogouthandler;
-
+    
     public SecurityConfig(
         CustomUserDetailsService customUserDetailsService,
         CustomLogoutHandler logoutHandler,
-        CustomAccessDeniedHandler accessDeniedHandler, JwtFilter jwtFilter
+        CustomAccessDeniedHandler accessDeniedHandler, 
+        JwtFilter jwtFilter
     ) {
         this.customUserDetailsService = customUserDetailsService;
         this.customAccessDeniedHandler = accessDeniedHandler;

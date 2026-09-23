@@ -13,11 +13,11 @@ import org.springframework.stereotype.Service;
 import com.example.app.dto.auth.login.input.LoginRequest;
 import com.example.app.dto.auth.login.input.RegisterRequest;
 import com.example.app.dto.auth.login.output.LoginResponse;
-import com.example.app.models.User;
-import com.example.app.repos.UserRepository;
+import com.example.app.models.main.User;
+import com.example.app.models.token.Token;
+import com.example.app.repos.main.UserRepository;
+import com.example.app.repos.token.TokenRepository;
 import com.example.app.security.jwt.JwtService;
-import com.example.app.security.jwt.Token.model.Token;
-import com.example.app.security.jwt.Token.repo.TokenRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -109,7 +109,8 @@ public class AuthencationService {
 
         token.setAccessToken(accessToken);
         token.setRefreshToken(refreshToken);
-        token.setUser(user);
+        token.setUserId(user.getId());
+        token.setLoggedOut(false);
 
         tokenRepository.save(token);
     }

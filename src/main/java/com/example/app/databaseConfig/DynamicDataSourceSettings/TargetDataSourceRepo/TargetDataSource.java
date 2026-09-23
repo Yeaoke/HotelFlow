@@ -1,4 +1,4 @@
-package com.example.app.databaseConfig.TargetDataSourceRepo;
+package com.example.app.databaseConfig.DynamicDataSourceSettings.TargetDataSourceRepo;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

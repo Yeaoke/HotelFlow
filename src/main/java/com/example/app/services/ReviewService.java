@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 import com.example.app.dto.review.input.ReviewRequest;
 import com.example.app.exceptions.ReservationNotFoundException;
 import com.example.app.exceptions.ReviewNotFoundException;
-import com.example.app.models.Reservation;
-import com.example.app.models.Review;
-import com.example.app.repos.ReservationRepository;
-import com.example.app.repos.ReviewRepository;
+import com.example.app.models.main.Reservation;
+import com.example.app.models.main.Review;
+import com.example.app.repos.main.ReservationRepository;
+import com.example.app.repos.main.ReviewRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;

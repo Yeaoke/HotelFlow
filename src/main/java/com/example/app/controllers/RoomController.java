@@ -1,9 +1,10 @@
 package com.example.app.controllers;
 
 import com.example.app.dto.room.output.RoomResponse;
-import com.example.app.dto.room.input.RoomRequest;
-import com.example.app.models.Room;
+import com.example.app.models.main.Room;
 import com.example.app.services.RoomService;
+import com.example.app.dto.room.input.RoomRequest;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;

@@ -9,10 +9,10 @@ import org.springframework.stereotype.Service;
 import com.example.app.dto.room.input.RoomRequest;
 import com.example.app.exceptions.RoomNotFoundException;
 import com.example.app.exceptions.UserNotFoundException;
-import com.example.app.models.Room;
-import com.example.app.models.User;
-import com.example.app.repos.RoomRepository;
-import com.example.app.repos.UserRepository;
+import com.example.app.models.main.Room;
+import com.example.app.models.main.User;
+import com.example.app.repos.main.RoomRepository;
+import com.example.app.repos.main.UserRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;

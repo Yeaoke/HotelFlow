@@ -20,9 +20,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.example.app.controllers.ReservationController;
 import com.example.app.dto.reservation.input.ReservationRequest;
-import com.example.app.models.Reservation;
-import com.example.app.models.Room;
-import com.example.app.models.User;
+import com.example.app.models.main.Reservation;
+import com.example.app.models.main.Room;
+import com.example.app.models.main.User;
 import com.example.app.services.ReservationService;
 
 @ExtendWith(MockitoExtension.class)

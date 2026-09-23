@@ -1,73 +1,85 @@
-spring:
-    dynamic:
-        datasource:
-            tenant-a:
-                url: "jdbc:postgresql://localhost:5432/reservation-info"
-                username: "postgres"
-                password: "postgres"
-                driver-class-name: "org.postgresql.Driver"
-
-                hikari:
-                    connection-timeout: 20000               # время подключения
-                    minimum-idle: 5                         # минимум потоков одновременно
-                    maximum-pool-size: 12                   # максимум потоков одновременно
-                    idle-timeout: 300000                    # время бездействия
-                    max-lifetime: 1200000                   # время жизни соединения в пуле
-                    pool-name: "ReservationInfoPool"
-                    auto-commit: true
-            tenant-b:
-                url: "jdbc:postgresql://localhost:5432/token-info"
-                username: "postgres"
-                password: "postgres"
-                driver-class-name: "org.postgresql.Driver"
-    redis:
-        host: "localhost"
-        port: 6379
-
-security:
-    jwt:
-        secret_key: 4eeab38d706831be4b36612ead768ef8182d1dd6f0e14e5dc934652e297fb16a
-        access_token_expiration: 36000000
-        refresh_token_expiration: 252000000
 server:
-    port: 8080
+  port: 8080
 
----
 spring:
-    config:
-        activate:
-            on-profile: dev
-
-    datasource:
-        url: "jdbc:postgresql://localhost:5432/postgres"
+  profiles:
+    active: dev
+  main:
+    allow-bean-definition-overriding: true
+  
+  dynamic:
+    datasources:
+      tenant-reservation:
+        url: "jdbc:postgresql://localhost:5432/reservation_info"
         username: "postgres"
         password: "MaL8033038"
         driver-class-name: "org.postgresql.Driver"
-    jpa:
-        hibernate:
-            ddl-auto: update
-            show-sql: true
+        hikari:
+          connection-timeout: 20000
+          minimum-idle: 5
+          maximum-pool-size: 12
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          pool-name: "ReservationInfoPool"
+      
+      tenant-token:
+        url: "jdbc:postgresql://localhost:5432/token_info"
+        username: "postgres"
+        password: "MaL8033038"
+        driver-class-name: "org.postgresql.Driver"
+        hikari:
+          connection-timeout: 20000
+          minimum-idle: 5
+          maximum-pool-size: 12
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          pool-name: "TokenInfoPool"
 
-logging:
-    level:
-        com.example: DEBUG
+  redis:
+    host: "localhost"
+    port: 6379
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+security:
+  jwt:
+    secret_key: 4eeab38d706831be4b36612ead768ef8182d1dd6f0e14e5dc934652e297fb16a
+    access_token_expiration: 36000000
+    refresh_token_expiration: 252000000
 
 ---
 spring:
-    config:
-        activate:
-            on-profile: prod
-
-    datasource:
-        url: "jdbc:postgresql://localhost:5432/postgres"
-        username: ${DB_USERNAME:postgres}
-        password: ${DB_PASSWORD:your_password}
-        driver-class-name: "org.postgresql.Driver"
-    jpa:
-        hibernate:
-            ddl-auto: validate
-            show-sql: false
+  config:
+    activate:
+      on-profile: dev
 
 logging:
-    level:
-        com.example: INFO
+  level:
+    com.example.app: DEBUG
+    org.springframework.security: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: "jdbc:postgresql://localhost:5432/postgres"
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:your_password}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+logging:
+  level:
+    com.example.app: INFO

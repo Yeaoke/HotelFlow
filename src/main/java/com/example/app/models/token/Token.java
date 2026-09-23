@@ -1,28 +1,30 @@
-package com.example.app.security.jwt.Token.model;
+package com.example.app.models.token;
 
-import com.example.app.models.User;
+import java.util.UUID;
+
+import org.hibernate.annotations.UuidGenerator;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "token_table")
+@Table(name = "Tokens")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Token {
 
     @Id
-    @ManyToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
-    private User user;
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
+    private UUID id;
+
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
     @Column(name = "access_token")
     private String accessToken;

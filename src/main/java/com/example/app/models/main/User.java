@@ -1,22 +1,21 @@
-package com.example.app.models;
+package com.example.app.models.main;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.example.app.security.UserRole.UserRole;
-import com.example.app.security.jwt.Token.model.Token;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -36,16 +35,15 @@ public class User implements UserDetails {
     @Column(name = "password", nullable = false)
     private String password;
 
-    @OneToMany(mappedBy = "user")
-    private List<Token> tokens;
-
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
-    @Column(name = "firstname", columnDefinition = "VARCHAR(10) DEFAULT 'firstname'")
+    @Column(name = "firstname")
+    @ColumnDefault("'firstname'")
     private String firstname;
 
-    @Column(name = "lastname", columnDefinition = "VARCHAR(10) DEFAULT 'lastname'")
+    @Column(name = "lastname")
+    @ColumnDefault("'lastname'")
     private String lastname;
 
     @Column(name = "email", unique = true)

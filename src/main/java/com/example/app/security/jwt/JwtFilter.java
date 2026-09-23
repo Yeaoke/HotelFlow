@@ -9,7 +9,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.example.app.models.User;
+import com.example.app.models.main.User;
 import com.example.app.services.UserService;
 
 import io.jsonwebtoken.JwtException;
@@ -18,15 +18,17 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
+@RequiredArgsConstructor
 @Component
 public class JwtFilter extends OncePerRequestFilter {
     
-    public final JwtService jwtService;
+    public JwtService jwtService;
 
-    private final UserService userService;
+    private UserService userService;
 
     public JwtFilter(JwtService jwtService, UserService userService) {
         this.jwtService = jwtService;

@@ -8,7 +8,7 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.stereotype.Component;
 
 @Component
-@ConfigurationProperties(prefix = "spring.dynamic")
+@ConfigurationProperties(prefix = "spring.dynamic") // Префикс до ключа 'datasources'
 public class DynamicDataSourceProperties {
 
     private Map<String, DataSourceProperties> datasources = new HashMap<>();
