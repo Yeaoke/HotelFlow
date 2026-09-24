@@ -1,5 +1,6 @@
 package com.example.app.security.jwt;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -34,8 +35,14 @@ public class JwtService {
 
     private TokenRepository tokenRepository;
 
-    public JwtService(TokenRepository tokenRepository) {
+    private TokenRedisService tokenRedisService;
+
+    public JwtService(
+        TokenRepository tokenRepository,
+        TokenRedisService tokenRedisService
+    ) {
         this.tokenRepository = tokenRepository;
+        this.tokenRedisService = tokenRedisService;
     }
 
     private SecretKey getSigningKey() {
@@ -44,9 +51,10 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private String generateToken(User user, long expiryTime) {
+    private String generateToken(User user, long expiryTime, String tokenType) {
         JwtBuilder builder = Jwts.builder()
             .subject(user.getUsername())
+            .claim("type", tokenType)
             .issuedAt(new Date(System.currentTimeMillis()))
             .expiration(new Date(System.currentTimeMillis() + expiryTime))
             .signWith(getSigningKey());
@@ -55,11 +63,31 @@ public class JwtService {
     }
 
     public String generateAccessToken(User user) {
-        return generateToken(user, accessTokenExpiration);
+        String accessToken = generateToken(
+            user, 
+            accessTokenExpiration, 
+            "access"
+        );
+        tokenRedisService.saveCacheAccessToken(
+            accessToken, 
+            user.getId().toString(), 
+            Duration.ofMinutes(15)
+        );
+        return accessToken;
     }
 
     public String generateRefreshToken(User user) {
-        return generateToken(user, refreshTokenExpiration);
+        String refreshToken = generateToken(
+            user, 
+            refreshTokenExpiration, 
+            "refresh"
+        );
+        tokenRedisService.saveCacheRefreshToken(
+            refreshToken, 
+            user.getId().toString(),
+            Duration.ofDays(30)
+        );
+        return refreshToken;
     }
 
     public Claims extractAllClaims(String token) {
@@ -86,7 +114,7 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    private boolean isAccessTokenExpired(String token) {
+    private boolean isTokenValidByExpiration(String token) {
         return !extractExpiration(token).before(new Date());
     }
 
@@ -94,13 +122,16 @@ public class JwtService {
 
         String username = extractUsername(token);
 
+        String tokenType = extractClaim(token, claims -> claims.get("type", String.class));
+
         boolean isValidToken = tokenRepository
                 .findByAccessToken(token)
                 .map(storedToken -> !storedToken.isLoggedOut())
                 .orElse(false);
 
         return username.equals(user.getUsername())
-                && !isAccessTokenExpired(token)
+                && "access".equals(tokenType)
+                && isTokenValidByExpiration(token)
                 && isValidToken;
     }
 
@@ -108,11 +139,14 @@ public class JwtService {
         
         String username = extractUsername(token);
 
+        String tokenType = extractClaim(token, claims -> claims.get("type", String.class));
+
         boolean isValidRefreshToken = tokenRepository.findByRefreshToken(token)
                 .map(t -> !t.isLoggedOut()).orElse(false);
 
         return username.equals(user.getUsername())
-                && isAccessTokenExpired(token)
+                && "refresh".equals(tokenType)
+                && isTokenValidByExpiration(token)
                 && isValidRefreshToken;
     }
 }
