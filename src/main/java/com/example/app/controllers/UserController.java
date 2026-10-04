@@ -28,7 +28,7 @@ public class UserController {
     private final AuthenticationService authenticationService;
 
     public UserController(
-        UserService userService, 
+        UserService userService,
         AuthenticationService authencationService
     ) {
         this.userService = userService;
@@ -53,7 +53,7 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/login")
+    @GetMapping("/login")
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request
     ) {

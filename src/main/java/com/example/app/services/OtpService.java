@@ -27,14 +27,14 @@ public class OtpService {
         return otp;
     }
 
-    public void saveOTP(String email, String otp) {
-        String key = OTP_PREFIX + email;
+    public void saveOTP(String username, String otp) {
+        String key = OTP_PREFIX + username;
 
         redisTemplate.opsForValue().set(key, otp, OTP_TTL);
     } 
 
-    public boolean verifyOTP(String email, String otp) {
-        String key = OTP_PREFIX + email;
+    public boolean verifyOTP(String username, String otp) {
+        String key = OTP_PREFIX + username;
 
         String savedOtp = redisTemplate.opsForValue().get(key);
 

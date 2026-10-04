@@ -15,27 +15,17 @@ import java.util.UUID;
 @Setter
 public class RefreshToken {
 
-    @Id
-    @GeneratedValue
-    private UUID id;
+        @Id
+        @GeneratedValue
+        private UUID id;
 
-    @Column(
-            name = "token_hash",
-            nullable = false,
-            unique = true
-    )
-    private String tokenHash;
+        @Column(name = "token_hash", nullable = false, unique = true)
+        private String tokenHash;
+        
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "user_id", nullable = false)
+        private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "user_id",
-            nullable = false
-    )
-    private User user;
-
-    @Column(
-            name = "logged_out",
-            nullable = false
-    )
-    private boolean loggedOut = false;
+        @Column(name = "logged_out", nullable = false)
+        private boolean loggedOut = false;
 }

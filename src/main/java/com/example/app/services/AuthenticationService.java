@@ -34,180 +34,135 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Log4j2
 public class AuthenticationService {
-
-    private final UserRepository userRepository;
-
-    private final PasswordEncoder passwordEncoder;
-
-    private final AuthenticationManager authenticationManager;
-
-    private final JwtService jwtService;
-
-    private final AccessTokenService accessTokenService;
-
-    private final TokenRepository tokenRepository;
-
-    private final OtpService otpService;
-
-
-    @Transactional
-    public RegisterResponse register(
-            RegisterRequest request
-    ) {
-
-        if (userRepository.existsByUsername(
-                request.username()
-        )) {
-
-            throw new UserAlreadyExistsException(
-                    "Username already exists"
-            );
-        }
-
-
-        if (userRepository.existsByEmail(
-                request.email()
-        )) {
-
-            throw new UserAlreadyExistsException(
-                    "Email already exists"
-            );
-        }
-
-
-        User user = new User();
-
-        user.setUsername(
-                request.username()
-        );
-
-        user.setEmail(
-                request.email()
-        );
-
-        user.setPassword(
-                passwordEncoder.encode(
-                        request.password()
-                )
-        );
-
-        user.setVerified(false);
         
-        userRepository.save(user);
+        private final UserRepository userRepository;
 
-        String otp = otpService.generateOTP(
-                user.getUsername()
-        );
+        private final PasswordEncoder passwordEncoder;
 
-        log.info(
-                "OTP generated for user {}: {}",
-                user.getUsername(),
-                otp
-        );
+        private final AuthenticationManager authenticationManager;
 
+        private final JwtService jwtService;
 
-        return new RegisterResponse(
-                "Registration was successfully completed. Verify your account.",
-                user.getUsername(),
-                otp
-        );
-    }
+        private final AccessTokenService accessTokenService;
+
+        private final TokenRepository tokenRepository;
+
+        private final OtpService otpService;
 
 
-    @Transactional
-    public void verifyUser(
-            VerifyOTPRequest request
-    ) {
+        @Transactional
+        public RegisterResponse register(RegisterRequest request) {
 
-        User user = userRepository
-                .findByUsername(
-                        request.username()
-                )
-                .orElseThrow(
-                        () -> new UserNotFoundException(
-                                "User not found"
+                if (userRepository.existsByUsername(request.username())) {
+                        throw new UserAlreadyExistsException("Username already exists");
+                }
+
+                if (userRepository.existsByEmail(request.email())) {
+                        throw new UserAlreadyExistsException("Email already exists");
+                }
+
+
+                User user = new User();
+
+                user.setUsername(request.username());
+
+                user.setEmail(request.email());
+
+                user.setPassword(passwordEncoder.encode(request.password()));
+
+                user.setVerified(false);
+
+                userRepository.save(user);
+
+                String otp = otpService.generateOTP(user.getUsername());
+
+                otpService.saveOTP(user.getUsername(), otp);
+
+                log.info(
+                        "OTP generated for user {}: {}",
+                        user.getUsername(),
+                        otp
+                );
+
+
+                return new RegisterResponse(
+                        "Registration was successfully completed. Verify your account.",
+                        user.getUsername(),
+                        otp
+                );
+        }
+
+
+        @Transactional
+        public void verifyUser(VerifyOTPRequest request) {
+
+                User user = userRepository.findByUsername(request.username())
+                        .orElseThrow(
+                                () -> new UserNotFoundException("User not found")
+                        );
+
+
+                boolean verified = otpService.verifyOTP(user.getUsername(), request.OTPCode());
+
+
+                if (!verified) {
+                        throw new IllegalArgumentException("Invalid or expired OTP");
+                }
+
+                user.setVerified(true);
+
+                userRepository.save(user);
+        }
+
+
+        public LoginResponse login(LoginRequest request) {
+
+                authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(
+                                request.username(),
+                                request.password()
                         )
                 );
 
+                User user = userRepository.findByUsername(request.username())
+                        .orElseThrow(
+                                () -> new UserNotFoundException("User not found")
+                        );
 
-        boolean verified =
-                otpService.verifyOTP(
-                        user.getEmail(),
-                        request.OTPCode()
+                if (!user.isVerified()) {
+                        throw new UserNotVerifiedException("User must be verified before login");
+                }
+
+ 
+                String newAccessToken = jwtService.generateAccessToken(user);
+
+
+                String newRefreshToken = jwtService.generateRefreshToken(user);
+
+                accessTokenService.saveAccessToken(newAccessToken, user);
+
+                saveRefreshToken(newRefreshToken, user);
+
+
+                return new LoginResponse(
+                        newAccessToken,
+                        newRefreshToken
                 );
-
-
-        if (!verified) {
-
-            throw new IllegalArgumentException(
-                    "Invalid or expired OTP"
-            );
         }
 
 
-        user.setVerified(true);
+        private void saveRefreshToken(String refreshToken, User user) {
+                String tokenHash = jwtService.hashToken(refreshToken);
 
-        userRepository.save(user);
-    }
+                RefreshToken refreshTokenEntity =new RefreshToken();
 
+                refreshTokenEntity.setTokenHash(tokenHash);
 
-    public LoginResponse login(
-            LoginRequest request
-    ) {
+                refreshTokenEntity.setUser(user);
 
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.username(),
-                        request.password()
-                )
-        );
+                refreshTokenEntity.setLoggedOut(false);
 
 
-        User user = userRepository
-                .findByUsername(
-                        request.username()
-                )
-                .orElseThrow(
-                        () -> new UserNotFoundException("User not found")
-                );
-
-
-        if (!user.isVerified()) {
-            throw new UserNotVerifiedException(
-                    "User must be verified before login"
-            );
+                tokenRepository.save(refreshTokenEntity);
         }
-
-
-        String newAccessToken = jwtService.generateAccessToken(user);
-
-
-        String newRefreshToken = jwtService.generateRefreshToken(user);
-
-        accessTokenService.saveAccessToken(newAccessToken, user);
-
-        saveRefreshToken(newRefreshToken, user);
-
-
-        return new LoginResponse(
-                newAccessToken,
-                newRefreshToken
-        );
-    }
-
-
-    private void saveRefreshToken(String refreshToken, User user) {
-        String tokenHash = jwtService.hashToken(refreshToken);
-
-        RefreshToken refreshTokenEntity =new RefreshToken();
-
-        refreshTokenEntity.setRefreshTokenHash(tokenHash);
-
-        refreshTokenEntity.setUser(user);
-
-        refreshTokenEntity.setLoggedOut(false);
-
-
-        tokenRepository.save(refreshTokenEntity);
-    }
 }
