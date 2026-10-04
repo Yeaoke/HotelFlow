@@ -1,32 +1,19 @@
 package com.example.app.repos.token;
 
-import java.util.List;
+import com.example.app.models.token.RefreshToken;
+import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
+public interface TokenRepository
+        extends JpaRepository<RefreshToken, UUID> {
 
-import com.example.app.models.main.User;
-import com.example.app.models.token.Token;
+    Optional<RefreshToken> findByTokenHash(
+            String tokenHash
+    );
 
-@Repository
-public interface TokenRepository extends JpaRepository<Token, User> {
-
-    @Query(
-        value = """
-            SELECT t.userId
-            FROM reservation_info.Users u
-            JOIN token_info.Tokens t
-            ON t.user_id = u.id
-            WHERE t.user_id = :userId 
-        """,
-        nativeQuery = true
-    )
-    List<Token> findAllAccessTokens(UUID userId);
-
-    Optional<Token> findByAccessToken(String accessToken);
-
-    Optional<Token> findByRefreshToken(String refreshToken);
+    void deleteAllByUserId(
+            UUID userId
+    );
 }

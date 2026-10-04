@@ -21,23 +21,11 @@ spring:
           idle-timeout: 300000
           max-lifetime: 1200000
           pool-name: "ReservationInfoPool"
-      
-      tenant-token:
-        url: "jdbc:postgresql://localhost:5432/token_info"
-        username: "postgres"
-        password: "MaL8033038"
-        driver-class-name: "org.postgresql.Driver"
-        hikari:
-          connection-timeout: 20000
-          minimum-idle: 5
-          maximum-pool-size: 12
-          idle-timeout: 300000
-          max-lifetime: 1200000
-          pool-name: "TokenInfoPool"
 
-  redis:
-    host: "localhost"
-    port: 6379
+  data:
+    redis:
+      host: "localhost"
+      port: 6379
 
   jpa:
     properties:

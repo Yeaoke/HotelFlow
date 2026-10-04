@@ -52,6 +52,9 @@ public class User implements UserDetails {
     @Column(name = "phone_number")
     private String phoneNumber;
 
+    @Column(name = "isVerified", nullable = false)
+    private boolean isVerified;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of();

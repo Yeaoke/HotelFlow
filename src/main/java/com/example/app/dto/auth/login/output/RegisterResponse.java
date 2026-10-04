@@ -1,5 +1,9 @@
 package com.example.app.dto.auth.login.output;
 
-public class RegisterResponse {
-    
-}
+public record RegisterResponse(
+    String message,
+
+    String username,
+
+    String OTPCode
+) {}

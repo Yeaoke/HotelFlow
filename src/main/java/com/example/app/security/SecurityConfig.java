@@ -1,83 +1,106 @@
 package com.example.app.security;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import com.example.app.security.handlers.CustomAccessDeniedHandler;
 import com.example.app.security.handlers.CustomLogoutHandler;
 import com.example.app.security.jwt.JwtFilter;
-import com.example.app.services.CustomUserDetailsService;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+
+import org.springframework.security.config.http.SessionCreationPolicy;
+
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
 
     private final JwtFilter jwtFilter;
 
-    private final CustomUserDetailsService customUserDetailsService;
+    private final CustomLogoutHandler customLogoutHandler;
 
-    private final CustomAccessDeniedHandler customAccessDeniedHandler;
-    
-    private final CustomLogoutHandler customLogouthandler;
-    
-    public SecurityConfig(
-        CustomUserDetailsService customUserDetailsService,
-        CustomLogoutHandler logoutHandler,
-        CustomAccessDeniedHandler accessDeniedHandler, 
-        JwtFilter jwtFilter
-    ) {
-        this.customUserDetailsService = customUserDetailsService;
-        this.customAccessDeniedHandler = accessDeniedHandler;
-        this.customLogouthandler = logoutHandler;
-        this.jwtFilter = jwtFilter;
-    }
 
-    @Bean SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        
-        http.csrf(AbstractHttpConfigurer::disable);
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http
+    ) throws Exception {
 
-        http.authorizeHttpRequests(
-            auth -> {
-                auth.requestMatchers("/login/**","/registration/**", "/css/**", "/refresh_token/**", "/")
-                    .permitAll();
-                auth.requestMatchers("/admin/**").hasAuthority("ADMIN");
-                auth.anyRequest().authenticated();
-            })
-            .userDetailsService(customUserDetailsService)
-            .exceptionHandling(e -> {
-                e.accessDeniedHandler(customAccessDeniedHandler);
-                e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
-            })
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-            .logout(log -> {
-                log.logoutUrl("/logout")
-                .addLogoutHandler(customLogouthandler)
-                .logoutSuccessHandler((request, response, auth) -> SecurityContextHolder.getContext());
-            });
-    
+        http
+
+                .csrf(csrf -> csrf.disable())
+
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
+
+
+                .authorizeHttpRequests(auth -> auth
+
+                        .requestMatchers(
+                                "/api/auth/**"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        .anyRequest().authenticated()
+                )
+
+
+                .logout(logout -> logout
+                        .logoutUrl("/api/auth/logout")
+                        .addLogoutHandler(
+                                customLogoutHandler
+                        )
+                        .logoutSuccessHandler(
+                                (request, response, authentication) -> {
+                                    response.setStatus(204);
+                                }
+                        )
+                )
+
+
+                .addFilterBefore(
+                        jwtFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
+
+
         return http.build();
     }
 
 
-    @Bean PasswordEncoder passwordEncoder() {
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+
         return new BCryptPasswordEncoder();
     }
 
-    @Bean AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) {
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration configuration
+    ) throws Exception {
+
         return configuration.getAuthenticationManager();
     }
 }

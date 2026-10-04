@@ -1,4 +1,4 @@
-package com.example.app.databaseConfig;
+package com.example.app.config.database;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +19,10 @@ import com.zaxxer.hikari.HikariDataSource;
 
 @Configuration
 @EnableJpaRepositories(
-    basePackages = "com.example.app.repos.main",
+    basePackages = {
+        "com.example.app.repos.main",
+        "com.example.app.repos.token"
+    },
     entityManagerFactoryRef = "reservationEntityManagerFactory",
     transactionManagerRef = "reservationTransactionManager"
 )
@@ -49,7 +52,10 @@ public class ReservationDbConfig {
             @Qualifier("reservationDataSource") DataSource dataSource) {
         var em = new LocalContainerEntityManagerFactoryBean();
         em.setDataSource(dataSource);
-        em.setPackagesToScan("com.example.app.models.main");
+        em.setPackagesToScan(
+            "com.example.app.models.main",
+            "com.example.app.models.token"
+        );
         em.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
         Map<String, Object> props = new HashMap<>();
         props.put("hibernate.hbm2ddl.auto", "update");
