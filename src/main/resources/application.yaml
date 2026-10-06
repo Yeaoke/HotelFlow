@@ -11,7 +11,7 @@ spring:
   dynamic:
     datasources:
       tenant-reservation:
-        url: jdbc:postgresql://database:5432/reservation_info
+        url: jdbc:postgresql://localhost:5432/reservation_info
         username: postgres
         password: MaL8033038
         driver-class-name: org.postgresql.Driver
@@ -68,8 +68,8 @@ spring:
     datasources:
       tenant-reservation:
         url: jdbc:postgresql://database:5432/reservation_info
-        username: ${DB_USERNAME:postgres}
-        password: ${DB_PASSWORD:MaL8033038}
+        username: ${POSTGRES_USERNAME}
+        password: ${POSTGRES_PASSWORD}
         driver-class-name: org.postgresql.Driver
 
         hikari:
