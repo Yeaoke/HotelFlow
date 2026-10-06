@@ -31,192 +31,280 @@ import lombok.extern.log4j.Log4j2;
 @RequiredArgsConstructor
 public class ReservationService {
 
-        private static final int MIN_DAYS = 1;
-        private static final int MAX_DAYS = 30;
+    private static final int MIN_DAYS = 1;
+    private static final int MAX_DAYS = 30;
 
-        private final ReservationRepository reservationRepository;
-        private final UserRepository userRepository;
-        private final RoomRepository roomRepository;
+    private final ReservationRepository reservationRepository;
+    private final UserRepository userRepository;
+    private final RoomRepository roomRepository;
 
-        @Transactional
-        public Reservation createReservation(
-                ReservationRequest dto,
-                UUID userId
-        ) {
-                validateDates(dto);
+    @Transactional
+    public Reservation createReservation(
+            ReservationRequest dto,
+            UUID userId
+    ) {
+        validateDates(dto);
 
-                User user = userRepository.findById(userId)
-                        .orElseThrow(() -> new UserNotFoundException(
-                                "User not found with id: " + userId
-                        ));
+        if (userId == null) {
+            throw new UserNotFoundException("User id can't be null");
+        }
 
-                Room room = roomRepository.findByIdForUpdate(dto.roomId())
-                        .orElseThrow(() -> new RoomNotFoundException(
-                                "Room not found with id: " + dto.roomId()
-                        ));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(
+                        "User not found with id: " + userId
+                ));
 
-                boolean available = reservationRepository.isRoomAvailableForPeriod(
+        Room room = roomRepository.findByIdForUpdate(dto.roomId())
+                .orElseThrow(() -> new RoomNotFoundException(
+                        "Room not found with id: " + dto.roomId()
+                ));
+
+        boolean available = reservationRepository.isRoomAvailableForPeriod(
+                room,
+                dto.start_date(),
+                dto.end_date()
+        );
+
+        if (!available) {
+            throw new RoomAlreadyReservedException(
+                    "Room already reserved for this period"
+            );
+        }
+
+        Reservation reservation = new Reservation();
+
+        reservation.setUser(user);
+        reservation.setRoom(room);
+        reservation.setStartDate(dto.start_date());
+        reservation.setEndDate(dto.end_date());
+        reservation.setPrice(
+                calculatePrice(
                         room,
                         dto.start_date(),
                         dto.end_date()
-                );
+                )
+        );
+        reservation.setStatus(ReservationStatus.APPROVED);
 
-                if (!available) {
-                        throw new RoomAlreadyReservedException(
-                                "Room already reserved for this period"
-                        );
-                }
+        Reservation saved = reservationRepository.save(reservation);
 
-                Reservation reservation = new Reservation();
-                reservation.setUser(user);
-                reservation.setRoom(room);
-                reservation.setStartDate(dto.start_date());
-                reservation.setEndDate(dto.end_date());
-                reservation.setPrice(calculatePrice(room, dto.start_date(), dto.end_date()));
-                reservation.setStatus(ReservationStatus.APPROVED);
+        log.info(
+                "Reservation created: reservationId={}, roomId={}, userId={}, thread={}",
+                saved.getId(),
+                room.getId(),
+                userId,
+                Thread.currentThread().getName()
+        );
 
-                Reservation saved = reservationRepository.save(reservation);
+        return saved;
+    }
 
-                log.info(
-                        "Reservation created: reservationId={}, roomId={}, userId={}, thread={}",
-                        saved.getId(),
-                        room.getId(),
-                        userId,
-                        Thread.currentThread().getName()
-                );
-
-                return saved;
+    @Transactional
+    public Reservation updateReservation(
+            UUID reservationId,
+            ReservationRequest dto
+    ) {
+        if (reservationId == null) {
+            throw new ReservationNotFoundException(
+                    "Reservation id can't be null"
+            );
         }
 
-        @Transactional
-        public Reservation updateReservation(
-                UUID reservationId,
-                ReservationRequest dto
-        ) {
-                validateDates(dto);
+        validateDates(dto);
 
-                Reservation reservation = reservationRepository.findByIdForUpdate(reservationId)
-                        .orElseThrow(() -> new ReservationNotFoundException(
-                                "Reservation not found with id: " + reservationId
-                        ));
+        Reservation reservation = reservationRepository.findByIdForUpdate(
+                reservationId
+        ).orElseThrow(() -> new ReservationNotFoundException(
+                "Reservation not found with id: " + reservationId
+        ));
 
-                UUID oldRoomId = reservation.getRoom().getId();
-                UUID newRoomId = dto.roomId();
+        UUID oldRoomId = reservation.getRoom().getId();
+        UUID newRoomId = dto.roomId();
 
-                if (oldRoomId.equals(newRoomId)) {
-                        Room room = roomRepository.findByIdForUpdate(oldRoomId)
-                                .orElseThrow(() -> new RoomNotFoundException(
-                                "Room not found with id: " + oldRoomId
-                        ));
+        if (oldRoomId.equals(newRoomId)) {
 
-                checkAvailable(
-                        reservationId,
-                        room,
-                        dto.start_date(),
-                        dto.end_date()
-                );
+            Room room = roomRepository.findByIdForUpdate(oldRoomId)
+                    .orElseThrow(() -> new RoomNotFoundException(
+                            "Room not found with id: " + oldRoomId
+                    ));
 
-                applyReservationChanges(
-                        reservation,
-                        room,
-                        dto.start_date(),
-                        dto.end_date()
-                );
+            checkAvailable(
+                    reservationId,
+                    room,
+                    dto.start_date(),
+                    dto.end_date()
+            );
 
-                return reservationRepository.save(reservation);
+            applyReservationChanges(
+                    reservation,
+                    room,
+                    dto.start_date(),
+                    dto.end_date()
+            );
+
+            Reservation saved = reservationRepository.save(reservation);
+
+            log.info(
+                    "Reservation updated: reservationId={}, roomId={}, thread={}",
+                    reservationId,
+                    room.getId(),
+                    Thread.currentThread().getName()
+            );
+
+            return saved;
         }
 
-                UUID firstId = oldRoomId.compareTo(newRoomId) < 0 ? oldRoomId : newRoomId;
+        UUID firstId;
+        UUID secondId;
 
-                UUID secondId = oldRoomId.compareTo(newRoomId) < 0 ? newRoomId : oldRoomId;
-
-                Room firstRoom = roomRepository.findByIdForUpdate(firstId)
-                        .orElseThrow(() -> new RoomNotFoundException(
-                                "Room not found with id: " + firstId
-                        ));
-
-                Room secondRoom = roomRepository.findByIdForUpdate(secondId)
-                        .orElseThrow(() -> new RoomNotFoundException(
-                                "Room not found with id: " + secondId
-                        ));
-
-                Room newRoom = newRoomId.equals(firstId) ? firstRoom : secondRoom;
-
-                checkAvailable(
-                        reservationId,
-                        newRoom,
-                        dto.start_date(),
-                        dto.end_date()
-                );
-
-                applyReservationChanges(
-                        reservation,
-                        newRoom,
-                        dto.start_date(),
-                        dto.end_date()
-                );
-
-                return reservationRepository.save(reservation);
+        if (oldRoomId.compareTo(newRoomId) < 0) {
+            firstId = oldRoomId;
+            secondId = newRoomId;
+        } else {
+            firstId = newRoomId;
+            secondId = oldRoomId;
         }
 
-        @Transactional
-        public Reservation updateReservationStatus(
-                UUID id,
-                ReservationStatus status
-        ) {
-                if (status == null) {
-                        throw new IllegalArgumentException("Status can't be null");
-                }
+        Room firstRoom = roomRepository.findByIdForUpdate(firstId)
+                .orElseThrow(() -> new RoomNotFoundException(
+                        "Room not found with id: " + firstId
+                ));
 
-                Reservation reservation = reservationRepository.findByIdForUpdate(id)
-                        .orElseThrow(() -> new ReservationNotFoundException(
-                                "Reservation not found with id: " + id
-                        ));
+        Room secondRoom = roomRepository.findByIdForUpdate(secondId)
+                .orElseThrow(() -> new RoomNotFoundException(
+                        "Room not found with id: " + secondId
+                ));
 
-                reservation.setStatus(status);
-                return reservationRepository.save(reservation);
+        Room newRoom;
+
+        if (newRoomId.equals(firstId)) {
+            newRoom = firstRoom;
+        } else {
+            newRoom = secondRoom;
         }
 
-        @Transactional(readOnly = true)
-        public Optional<Reservation> findReservation(UUID id) {
-                return reservationRepository.findById(id);
+        checkAvailable(
+                reservationId,
+                newRoom,
+                dto.start_date(),
+                dto.end_date()
+        );
+
+        applyReservationChanges(
+                reservation,
+                newRoom,
+                dto.start_date(),
+                dto.end_date()
+        );
+
+        Reservation saved = reservationRepository.save(reservation);
+
+        log.info(
+                "Reservation updated: reservationId={}, oldRoomId={}, newRoomId={}, thread={}",
+                reservationId,
+                oldRoomId,
+                newRoomId,
+                Thread.currentThread().getName()
+        );
+
+        return saved;
+    }
+
+    @Transactional
+    public Reservation updateReservationStatus(
+            UUID id,
+            ReservationStatus status
+    ) {
+        if (id == null) {
+            throw new ReservationNotFoundException(
+                    "Reservation id can't be null"
+            );
         }
 
-        @Transactional(readOnly = true)
-        public Optional<Reservation> getReservationById(UUID id) {
-                return reservationRepository.findById(id);
+        if (status == null) {
+            throw new IllegalArgumentException(
+                    "Status can't be null"
+            );
         }
 
-        @Transactional(readOnly = true)
-        public List<Reservation> getAllReservations() {
-                return reservationRepository.findAll();
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ReservationNotFoundException(
+                        "Reservation not found with id: " + id
+                ));
+
+        reservation.setStatus(status);
+
+        Reservation saved = reservationRepository.save(reservation);
+
+        log.info(
+                "Reservation status updated: reservationId={}, status={}",
+                id,
+                status
+        );
+
+        return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Reservation> findReservation(UUID id) {
+        if (id == null) {
+            return Optional.empty();
         }
 
-                @Transactional
-                public void deleteReservation(UUID id) {
-                Reservation reservation = reservationRepository.findByIdForUpdate(id)
-                        .orElseThrow(() -> new ReservationNotFoundException(
-                                "Reservation not found with id: " + id
-                        ));
-                
-                UUID roomId = reservation.getRoom().getId();
-                
-                roomRepository.findByIdForUpdate(roomId)
-                        .orElseThrow(() -> new RoomNotFoundException(
-                                "Room not found with id: " + roomId
-                        ));
-                
-                reservationRepository.delete(reservation);
-                
-                log.info("Reservation deleted: {}", id);
+        return reservationRepository.findById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Reservation> getReservationById(UUID id) {
+        if (id == null) {
+            return Optional.empty();
         }
 
-        private void checkAvailable(
-                UUID reservationId,
-                Room room,
-                LocalDate startDate,
-                LocalDate endDate
-        ) {
+        return reservationRepository.findById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Reservation> getAllReservations() {
+        return reservationRepository.findAll();
+    }
+
+    @Transactional
+    public void deleteReservation(UUID id) {
+
+        if (id == null) {
+            throw new ReservationNotFoundException(
+                    "Reservation id can't be null"
+            );
+        }
+
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ReservationNotFoundException(
+                        "Reservation not found with id: " + id
+                ));
+
+        UUID roomId = reservation.getRoom().getId();
+
+        roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new RoomNotFoundException(
+                        "Room not found with id: " + roomId
+                ));
+
+        reservationRepository.delete(reservation);
+
+        log.info(
+                "Reservation deleted: reservationId={}, roomId={}, thread={}",
+                id,
+                roomId,
+                Thread.currentThread().getName()
+        );
+    }
+
+    private void checkAvailable(
+            UUID reservationId,
+            Room room,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
         boolean available =
                 reservationRepository.isRoomAvailableForPeriodWithReservation(
                         reservationId,
@@ -226,78 +314,112 @@ public class ReservationService {
                 );
 
         if (!available) {
-                throw new RoomAlreadyReservedException(
-                        "Room already reserved for this period"
-                );
+            throw new RoomAlreadyReservedException(
+                    "Room already reserved for this period"
+            );
         }
+    }
+
+    private void applyReservationChanges(
+            Reservation reservation,
+            Room room,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        reservation.setRoom(room);
+        reservation.setStartDate(startDate);
+        reservation.setEndDate(endDate);
+        reservation.setPrice(
+                calculatePrice(
+                        room,
+                        startDate,
+                        endDate
+                )
+        );
+    }
+
+    private Long calculatePrice(
+            Room room,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        if (room == null) {
+            throw new RoomNotFoundException(
+                    "Room can't be null"
+            );
         }
 
-        private void applyReservationChanges(
-                Reservation reservation,
-                Room room,
-                LocalDate startDate,
-                LocalDate endDate
-        ) {
-                reservation.setRoom(room);
-                reservation.setStartDate(startDate);
-                reservation.setEndDate(endDate);
-                reservation.setPrice(calculatePrice(room, startDate, endDate));
-                }
-
-                private Long calculatePrice(
-                        Room room,
-                        LocalDate startDate,
-                        LocalDate endDate
-                ) {
-                if (room.getPrice() == null) {
-                        throw new IllegalArgumentException("Room price can't be null");
-                }
-
-                long days = ChronoUnit.DAYS.between(startDate, endDate);
-
-                try {
-                        return Math.multiplyExact(room.getPrice(), days);
-                } catch (ArithmeticException e) {
-                        throw new IllegalArgumentException("Reservation price is too large", e);
-                }
+        if (room.getPrice() == null) {
+            throw new IllegalArgumentException(
+                    "Room price can't be null"
+            );
         }
 
-        private void validateDates(ReservationRequest dto) {
-                if (dto == null) {
-                        throw new DaysAmountException("Reservation data can't be null");
-                }
-
-                if (dto.roomId() == null) {
-                        throw new DaysAmountException("Room id can't be null");
-                }
-
-                if (dto.start_date() == null || dto.end_date() == null) {
-                        throw new DaysAmountException(
-                                "Start date and end date can't be null"
-                        );
-                }
-
-                if (!dto.start_date().isBefore(dto.end_date())) {
-                        throw new DaysAmountException(
-                                "Start date must be before end date"
-                        );
-                }
-
-                long days = ChronoUnit.DAYS.between(
-                        dto.start_date(),
-                        dto.end_date()
-                );
-
-                if (days < MIN_DAYS) {
-                        throw new DaysAmountException(
-                                "Reservation must be at least 1 day"
-                        );
-                }
-
-                if (days > MAX_DAYS) {
-                        throw new DaysAmountException(
-                                "Reservation cannot be longer than 30 days"
-                        );
-                }
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException(
+                    "Start date and end date can't be null"
+            );
         }
+
+        long days = ChronoUnit.DAYS.between(
+                startDate,
+                endDate
+        );
+
+        try {
+            return Math.multiplyExact(
+                    room.getPrice(),
+                    days
+            );
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException(
+                    "Reservation price is too large",
+                    e
+            );
+        }
+    }
+
+    private void validateDates(ReservationRequest dto) {
+
+        if (dto == null) {
+            throw new DaysAmountException(
+                    "Reservation data can't be null"
+            );
+        }
+
+        if (dto.roomId() == null) {
+            throw new DaysAmountException(
+                    "Room id can't be null"
+            );
+        }
+
+        if (dto.start_date() == null || dto.end_date() == null) {
+            throw new DaysAmountException(
+                    "Start date and end date can't be null"
+            );
+        }
+
+        if (!dto.start_date().isBefore(dto.end_date())) {
+            throw new DaysAmountException(
+                    "Start date must be before end date"
+            );
+        }
+
+        long days = ChronoUnit.DAYS.between(
+                dto.start_date(),
+                dto.end_date()
+        );
+
+        if (days < MIN_DAYS) {
+            throw new DaysAmountException(
+                    "Reservation must be at least 1 day"
+            );
+        }
+
+        if (days > MAX_DAYS) {
+            throw new DaysAmountException(
+                    "Reservation cannot be longer than 30 days"
+            );
+        }
+    }
 }
