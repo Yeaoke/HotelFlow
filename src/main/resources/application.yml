@@ -4,35 +4,39 @@ server:
 spring:
   profiles:
     active: dev
+
   main:
     allow-bean-definition-overriding: true
-  
+
   dynamic:
     datasources:
       tenant-reservation:
-        url: "jdbc:postgresql://localhost:5432/reservation_info"
-        username: "postgres"
-        password: "MaL8033038"
-        driver-class-name: "org.postgresql.Driver"
+        url: jdbc:postgresql://database:5432/reservation_info
+        username: postgres
+        password: MaL8033038
+        driver-class-name: org.postgresql.Driver
+
         hikari:
           connection-timeout: 20000
           minimum-idle: 5
           maximum-pool-size: 12
           idle-timeout: 300000
           max-lifetime: 1200000
-          pool-name: "ReservationInfoPool"
+          pool-name: ReservationInfoPool
 
   data:
     redis:
-      host: "localhost"
+      host: redis
       port: 6379
 
   jpa:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
     hibernate:
       ddl-auto: update
+
     show-sql: true
 
 security:
@@ -40,6 +44,7 @@ security:
     secret_key: 4eeab38d706831be4b36612ead768ef8182d1dd6f0e14e5dc934652e297fb16a
     access_token_expiration: 36000000
     refresh_token_expiration: 252000000
+
 
 ---
 spring:
@@ -52,16 +57,33 @@ logging:
     com.example.app: DEBUG
     org.springframework.security: DEBUG
 
+
 ---
 spring:
   config:
     activate:
       on-profile: prod
 
-  datasource:
-    url: "jdbc:postgresql://localhost:5432/postgres"
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:your_password}
+  dynamic:
+    datasources:
+      tenant-reservation:
+        url: jdbc:postgresql://database:5432/reservation_info
+        username: ${DB_USERNAME:postgres}
+        password: ${DB_PASSWORD:MaL8033038}
+        driver-class-name: org.postgresql.Driver
+
+        hikari:
+          connection-timeout: 20000
+          minimum-idle: 5
+          maximum-pool-size: 12
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          pool-name: ReservationInfoPool
+
+  data:
+    redis:
+      host: redis
+      port: 6379
 
   jpa:
     hibernate:
