@@ -5,29 +5,40 @@ spring:
   profiles:
     active: dev
 
+security:
+  jwt:
+    secret_key: ${SECRET_KEY:4eeab38d706831be4b36612ead768ef8182d1dd6f0e14e5dc934652e297fb16a}
+    access_token_expiration: ${ACCESS_TOKEN_EXPIRATION:36000000}
+    refresh_token_expiration: ${REFRESH_TOKEN_EXPIRATION:252000000}
+
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/reservation_info
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD:MaL8033038}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      connection-timeout: 20000
+      minimum-idle: 5
+      maximum-pool-size: 12
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      pool-name: ReservationInfoPool
+
   main:
     allow-bean-definition-overriding: true
 
-  dynamic:
-    datasources:
-      tenant-reservation:
-        url: jdbc:postgresql://localhost:5432/reservation_info
-        username: postgres
-        password: MaL8033038
-        driver-class-name: org.postgresql.Driver
-
-        hikari:
-          connection-timeout: 20000
-          minimum-idle: 5
-          maximum-pool-size: 12
-          idle-timeout: 300000
-          max-lifetime: 1200000
-          pool-name: ReservationInfoPool
-
   data:
     redis:
-      host: redis
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   jpa:
     properties:
@@ -38,19 +49,6 @@ spring:
       ddl-auto: update
 
     show-sql: true
-
-security:
-  jwt:
-    secret_key: 4eeab38d706831be4b36612ead768ef8182d1dd6f0e14e5dc934652e297fb16a
-    access_token_expiration: 36000000
-    refresh_token_expiration: 252000000
-
-
----
-spring:
-  config:
-    activate:
-      on-profile: dev
 
 logging:
   level:
@@ -64,30 +62,33 @@ spring:
     activate:
       on-profile: prod
 
-  dynamic:
-    datasources:
-      tenant-reservation:
-        url: jdbc:postgresql://database:5432/reservation_info
-        username: ${POSTGRES_USERNAME}
-        password: ${POSTGRES_PASSWORD}
-        driver-class-name: org.postgresql.Driver
+  datasource:
+    url: jdbc:postgresql://database:5432/reservation_info
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
-        hikari:
-          connection-timeout: 20000
-          minimum-idle: 5
-          maximum-pool-size: 12
-          idle-timeout: 300000
-          max-lifetime: 1200000
-          pool-name: ReservationInfoPool
+    hikari:
+      connection-timeout: 20000
+      minimum-idle: 5
+      maximum-pool-size: 12
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      pool-name: ReservationInfoPool
 
   data:
     redis:
-      host: redis
-      port: 6379
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
 
   jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
     hibernate:
       ddl-auto: validate
+
     show-sql: false
 
 logging:

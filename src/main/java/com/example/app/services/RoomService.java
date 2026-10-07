@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.app.dto.room.input.RoomRequest;
 import com.example.app.exceptions.RoomNotFoundException;
@@ -14,7 +15,6 @@ import com.example.app.models.main.User;
 import com.example.app.repos.main.RoomRepository;
 import com.example.app.repos.main.UserRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
@@ -31,16 +31,30 @@ public class RoomService {
             RoomRequest dto,
             UUID userId
     ) {
+        if (dto == null) {
+            throw new IllegalArgumentException(
+                    "Room data can't be null"
+            );
+        }
 
-        log.info("Creating room: ownerId={}, thread={}", userId, Thread.currentThread().getName());
+        if (userId == null) {
+            throw new UserNotFoundException(
+                    "User id can't be null"
+            );
+        }
+
+        log.info(
+                "Creating room: ownerId={}, thread={}",
+                userId,
+                Thread.currentThread().getName()
+        );
 
         validatePrice(dto.price());
 
         User owner = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(
-                                "User not found with id: " + userId
-                        )
-                );
+                        "User not found with id: " + userId
+                ));
 
         Room room = new Room();
 
@@ -57,18 +71,31 @@ public class RoomService {
 
         Room savedRoom = roomRepository.save(room);
 
-        log.info("Room created: id={}, ownerId={}", savedRoom.getId(), userId);
+        log.info(
+                "Room created: id={}, ownerId={}",
+                savedRoom.getId(),
+                userId
+        );
 
         return savedRoom;
     }
 
+    @Transactional(readOnly = true)
     public Optional<Room> getRoomById(UUID id) {
 
-        log.info("Getting room: id={}", id);
-
-        return roomRepository.findById(id);
+        if (id == null) {
+            return Optional.empty();
         }
 
+        log.info(
+                "Getting room: id={}",
+                id
+        );
+
+        return roomRepository.findById(id);
+    }
+
+    @Transactional(readOnly = true)
     public List<Room> getAllRooms() {
 
         log.info("Getting all rooms");
@@ -78,14 +105,29 @@ public class RoomService {
 
     @Transactional
     public void deleteRoom(UUID id) {
-        log.info("Deleting room: id={}", id);
+
+        if (id == null) {
+            throw new RoomNotFoundException(
+                    "Room id can't be null"
+            );
+        }
+
+        log.info(
+                "Deleting room: id={}",
+                id
+        );
 
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new RoomNotFoundException(
-                                "Room not found with id: " + id
-                        )
-                );
+                        "Room not found with id: " + id
+                ));
+
         roomRepository.delete(room);
+
+        log.info(
+                "Room deleted: id={}",
+                id
+        );
     }
 
     private void validatePrice(Long price) {

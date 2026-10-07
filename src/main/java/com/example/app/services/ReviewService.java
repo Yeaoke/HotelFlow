@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.app.dto.review.input.ReviewRequest;
 import com.example.app.exceptions.ReservationNotFoundException;
@@ -14,7 +15,6 @@ import com.example.app.models.main.Review;
 import com.example.app.repos.main.ReservationRepository;
 import com.example.app.repos.main.ReviewRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
@@ -31,14 +31,27 @@ public class ReviewService {
             ReviewRequest dto,
             UUID reservationId
     ) {
-        log.info("Creating review: reservationId={}",reservationId);
+        if (reservationId == null) {
+            throw new ReservationNotFoundException(
+                    "Reservation id can't be null"
+            );
+        }
+
+        if (dto == null) {
+            throw new IllegalArgumentException(
+                    "Review data can't be null"
+            );
+        }
+
+        log.info(
+                "Creating review: reservationId={}",
+                reservationId
+        );
 
         Reservation reservation = reservationRepository.findById(reservationId)
-                        .orElseThrow(() -> new ReservationNotFoundException(
-                                        "Reservation not found with id: "
-                                                + reservationId
-                                )
-                        );
+                .orElseThrow(() -> new ReservationNotFoundException(
+                        "Reservation not found with id: " + reservationId
+                ));
 
         validateRating(dto.rating());
 
@@ -49,12 +62,21 @@ public class ReviewService {
 
         Review savedReview = reviewRepository.save(review);
 
-        log.info("Review created: id={}, reservationId={}",savedReview.getId(), reservationId);
+        log.info(
+                "Review created: id={}, reservationId={}",
+                savedReview.getId(),
+                reservationId
+        );
 
         return savedReview;
     }
 
+    @Transactional(readOnly = true)
     public Optional<Review> getReviewById(UUID id) {
+
+        if (id == null) {
+            return Optional.empty();
+        }
 
         log.info(
                 "Getting review: id={}",
@@ -64,6 +86,7 @@ public class ReviewService {
         return reviewRepository.findById(id);
     }
 
+    @Transactional(readOnly = true)
     public List<Review> getAllReviews() {
 
         log.info("Getting all reviews");
@@ -74,18 +97,28 @@ public class ReviewService {
     @Transactional
     public void deleteReview(UUID id) {
 
+        if (id == null) {
+            throw new ReviewNotFoundException(
+                    "Review id can't be null"
+            );
+        }
+
         log.info(
                 "Deleting review: id={}",
                 id
         );
 
         Review review = reviewRepository.findById(id)
-                    .orElseThrow(() -> new ReviewNotFoundException(
-                                        "Review not found with id: " + id
-                                )
-                        );
+                .orElseThrow(() -> new ReviewNotFoundException(
+                        "Review not found with id: " + id
+                ));
 
         reviewRepository.delete(review);
+
+        log.info(
+                "Review deleted: id={}",
+                id
+        );
     }
 
     private void validateRating(Integer rating) {
