@@ -25,21 +25,21 @@ public class UserService {
 
     @Transactional
     public void updateUserDetails(
-        UUID userId,
-        UserInfoRequest dto
+            UUID userId,
+            UserInfoRequest dto
     ) {
-        if (userId == null) {
-                throw new UserNotFoundException("User id can't be null");
-        }
+        validateUserId(userId);
 
         if (dto == null) {
-            throw new IllegalArgumentException("User data can't be null");
+            throw new IllegalArgumentException(
+                    "User data can't be null"
+            );
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(
-                        () -> new UserNotFoundException("User not found with id: " + userId)
-                );
+                .orElseThrow(() -> new UserNotFoundException(
+                        "User not found with id: " + userId
+                ));
 
         if (dto.firstname() != null) {
             user.setFirstname(dto.firstname());
@@ -59,21 +59,12 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserInfoResponse getUserProfile(UUID userId) {
 
-        if (userId == null) {
-            throw new UserNotFoundException(
-                    "User id can't be null"
-            );
-        }
+        validateUserId(userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(
                         "User not found with id: " + userId
                 ));
-
-        log.info(
-                "Getting user profile: id={}",
-                userId
-        );
 
         return new UserInfoResponse(
                 user.getId(),
@@ -92,38 +83,23 @@ public class UserService {
             return Optional.empty();
         }
 
-        log.info(
-                "Getting user: id={}",
-                id
-        );
-
         return userRepository.findById(id);
     }
 
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
-
-        log.info("Getting all users");
-
         return userRepository.findAll();
     }
 
     @Transactional(readOnly = true)
     public List<User> getAllUsersWhoMadeReview() {
-
-        log.info("Getting users who made reviews");
-
         return userRepository.findAllUsersWhoMadeReview();
     }
 
     @Transactional
     public void deleteUser(UUID id) {
 
-        if (id == null) {
-            throw new UserNotFoundException(
-                    "User id can't be null"
-            );
-        }
+        validateUserId(id);
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(
@@ -132,10 +108,7 @@ public class UserService {
 
         userRepository.delete(user);
 
-        log.info(
-                "User deleted: id={}",
-                id
-        );
+        log.info("User deleted: id={}", id);
     }
 
     @Transactional(readOnly = true)
@@ -171,5 +144,13 @@ public class UserService {
         }
 
         return userRepository.existsByEmail(email);
+    }
+
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new UserNotFoundException(
+                    "User id can't be null"
+            );
+        }
     }
 }

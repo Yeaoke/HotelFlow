@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,24 +47,27 @@ public class ReservationService {
         validateDates(dto);
 
         if (userId == null) {
-            throw new UserNotFoundException("User id can't be null");
+            throw new UserNotFoundException(
+                    "User id can't be null"
+            );
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(
-                        "User not found with id: " + userId
-                ));
+                .orElseThrow(
+                        () -> new UserNotFoundException("User not found with id: " + userId)
+                );
 
         Room room = roomRepository.findByIdForUpdate(dto.roomId())
-                .orElseThrow(() -> new RoomNotFoundException(
-                        "Room not found with id: " + dto.roomId()
-                ));
+                .orElseThrow(
+                        () -> new RoomNotFoundException("Room not found with id: " + dto.roomId())
+                );
 
-        boolean available = reservationRepository.isRoomAvailableForPeriod(
-                room,
-                dto.start_date(),
-                dto.end_date()
-        );
+        boolean available =
+                reservationRepository.isRoomAvailableForPeriod(
+                        room,
+                        dto.start_date(),
+                        dto.end_date()
+                );
 
         if (!available) {
             throw new RoomAlreadyReservedException(
@@ -102,7 +106,8 @@ public class ReservationService {
     @Transactional
     public Reservation updateReservation(
             UUID reservationId,
-            ReservationRequest dto
+            ReservationRequest dto,
+            UUID userId
     ) {
         if (reservationId == null) {
             throw new ReservationNotFoundException(
@@ -110,6 +115,7 @@ public class ReservationService {
             );
         }
 
+        validateUserId(userId);
         validateDates(dto);
 
         Reservation reservation = reservationRepository.findByIdForUpdate(
@@ -117,6 +123,8 @@ public class ReservationService {
         ).orElseThrow(() -> new ReservationNotFoundException(
                 "Reservation not found with id: " + reservationId
         ));
+
+        checkOwner(reservation, userId);
 
         UUID oldRoomId = reservation.getRoom().getId();
         UUID newRoomId = dto.roomId();
@@ -145,9 +153,10 @@ public class ReservationService {
             Reservation saved = reservationRepository.save(reservation);
 
             log.info(
-                    "Reservation updated: reservationId={}, roomId={}, thread={}",
+                    "Reservation updated: reservationId={}, roomId={}, userId={}, thread={}",
                     reservationId,
                     room.getId(),
+                    userId,
                     Thread.currentThread().getName()
             );
 
@@ -200,10 +209,11 @@ public class ReservationService {
         Reservation saved = reservationRepository.save(reservation);
 
         log.info(
-                "Reservation updated: reservationId={}, oldRoomId={}, newRoomId={}, thread={}",
+                "Reservation updated: reservationId={}, oldRoomId={}, newRoomId={}, userId={}, thread={}",
                 reservationId,
                 oldRoomId,
                 newRoomId,
+                userId,
                 Thread.currentThread().getName()
         );
 
@@ -213,13 +223,16 @@ public class ReservationService {
     @Transactional
     public Reservation updateReservationStatus(
             UUID id,
-            ReservationStatus status
+            ReservationStatus status,
+            UUID userId
     ) {
         if (id == null) {
             throw new ReservationNotFoundException(
                     "Reservation id can't be null"
             );
         }
+
+        validateUserId(userId);
 
         if (status == null) {
             throw new IllegalArgumentException(
@@ -228,59 +241,82 @@ public class ReservationService {
         }
 
         Reservation reservation = reservationRepository.findByIdForUpdate(id)
-                .orElseThrow(() -> new ReservationNotFoundException(
-                        "Reservation not found with id: " + id
-                ));
+                .orElseThrow(
+                        () -> new ReservationNotFoundException("Reservation not found with id: " + id)
+                );
+
+        checkOwner(reservation, userId);
 
         reservation.setStatus(status);
 
         Reservation saved = reservationRepository.save(reservation);
 
         log.info(
-                "Reservation status updated: reservationId={}, status={}",
+                "Reservation status updated: reservationId={}, status={}, userId={}",
                 id,
-                status
+                status,
+                userId
         );
 
         return saved;
     }
 
     @Transactional(readOnly = true)
-    public Optional<Reservation> findReservation(UUID id) {
+    public Optional<Reservation> findReservation(
+            UUID id,
+            UUID userId
+    ) {
         if (id == null) {
             return Optional.empty();
         }
 
-        return reservationRepository.findById(id);
-    }
+        validateUserId(userId);
 
-    @Transactional(readOnly = true)
-    public Optional<Reservation> getReservationById(UUID id) {
-        if (id == null) {
+        Optional<Reservation> reservation = reservationRepository.findById(id);
+
+        if (reservation.isEmpty()) {
             return Optional.empty();
         }
 
-        return reservationRepository.findById(id);
+        checkOwner(reservation.get(), userId);
+
+        return reservation;
     }
 
     @Transactional(readOnly = true)
-    public List<Reservation> getAllReservations() {
-        return reservationRepository.findAll();
+    public Optional<Reservation> getReservationById(
+            UUID id,
+            UUID userId
+    ) {
+        return findReservation(id, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Reservation> getAllReservations(UUID userId) {
+        validateUserId(userId);
+
+        return reservationRepository.findAllUserReservations(userId);
     }
 
     @Transactional
-    public void deleteReservation(UUID id) {
-
+    public void deleteReservation(
+            UUID id,
+            UUID userId
+    ) {
         if (id == null) {
             throw new ReservationNotFoundException(
                     "Reservation id can't be null"
             );
         }
 
+        validateUserId(userId);
+
         Reservation reservation = reservationRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ReservationNotFoundException(
                         "Reservation not found with id: " + id
                 ));
+
+        checkOwner(reservation, userId);
 
         UUID roomId = reservation.getRoom().getId();
 
@@ -292,11 +328,32 @@ public class ReservationService {
         reservationRepository.delete(reservation);
 
         log.info(
-                "Reservation deleted: reservationId={}, roomId={}, thread={}",
+                "Reservation deleted: reservationId={}, roomId={}, userId={}, thread={}",
                 id,
                 roomId,
+                userId,
                 Thread.currentThread().getName()
         );
+    }
+
+    private void checkOwner(
+            Reservation reservation,
+            UUID userId
+    ) {
+        if (reservation.getUser() == null || reservation.getUser().getId() == null || !reservation.getUser().getId().equals(userId)) {
+
+            throw new AccessDeniedException(
+                    "You don't have access to this reservation"
+            );
+        }
+    }
+
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new UserNotFoundException(
+                    "User id can't be null"
+            );
+        }
     }
 
     private void checkAvailable(
@@ -306,12 +363,13 @@ public class ReservationService {
             LocalDate endDate
     ) {
         boolean available =
-                reservationRepository.isRoomAvailableForPeriodWithReservation(
-                        reservationId,
-                        room,
-                        startDate,
-                        endDate
-                );
+                reservationRepository
+                        .isRoomAvailableForPeriodWithReservation(
+                                reservationId,
+                                room,
+                                startDate,
+                                endDate
+                        );
 
         if (!available) {
             throw new RoomAlreadyReservedException(

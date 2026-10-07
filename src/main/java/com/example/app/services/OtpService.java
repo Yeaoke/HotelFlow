@@ -31,7 +31,7 @@ public class OtpService {
         String key = OTP_PREFIX + username;
 
         redisTemplate.opsForValue().set(key, otp, OTP_TTL);
-    } 
+    }
 
     public boolean verifyOTP(String username, String otp) {
         String key = OTP_PREFIX + username;

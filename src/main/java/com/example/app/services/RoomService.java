@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,24 +38,19 @@ public class RoomService {
             );
         }
 
-        if (userId == null) {
-            throw new UserNotFoundException(
-                    "User id can't be null"
-            );
-        }
+        validateUserId(userId);
+        validatePrice(dto.price());
+
+        User owner = userRepository.findById(userId)
+                .orElseThrow(
+                        () -> new UserNotFoundException("User not found with id: " + userId)
+                );
 
         log.info(
                 "Creating room: ownerId={}, thread={}",
                 userId,
                 Thread.currentThread().getName()
         );
-
-        validatePrice(dto.price());
-
-        User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(
-                        "User not found with id: " + userId
-                ));
 
         Room room = new Room();
 
@@ -87,47 +83,69 @@ public class RoomService {
             return Optional.empty();
         }
 
-        log.info(
-                "Getting room: id={}",
-                id
-        );
-
         return roomRepository.findById(id);
     }
 
     @Transactional(readOnly = true)
     public List<Room> getAllRooms() {
-
-        log.info("Getting all rooms");
-
         return roomRepository.findAll();
     }
 
     @Transactional
-    public void deleteRoom(UUID id) {
-
+    public void deleteRoom(
+            UUID id,
+            UUID userId
+    ) {
         if (id == null) {
             throw new RoomNotFoundException(
                     "Room id can't be null"
             );
         }
 
+        validateUserId(userId);
+
         log.info(
-                "Deleting room: id={}",
-                id
+                "Deleting room: id={}, userId={}",
+                id,
+                userId
         );
 
         Room room = roomRepository.findById(id)
-                .orElseThrow(() -> new RoomNotFoundException(
-                        "Room not found with id: " + id
-                ));
+                .orElseThrow(
+                        () -> new RoomNotFoundException("Room not found with id: " + id)
+                );
+
+        checkOwnership(room, userId);
 
         roomRepository.delete(room);
 
         log.info(
-                "Room deleted: id={}",
-                id
+                "Room deleted: id={}, userId={}",
+                id,
+                userId
         );
+    }
+
+    private void checkOwnership(
+            Room room,
+            UUID userId
+    ) {
+        if (room.getOwner() == null
+                || room.getOwner().getId() == null
+                || !room.getOwner().getId().equals(userId)) {
+
+            throw new AccessDeniedException(
+                    "You don't have access to this room"
+            );
+        }
+    }
+
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new UserNotFoundException(
+                    "User id can't be null"
+            );
+        }
     }
 
     private void validatePrice(Long price) {

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +30,18 @@ public class ReviewService {
     @Transactional
     public Review createReview(
             ReviewRequest dto,
-            UUID reservationId
+            UUID reservationId,
+            UUID userId
     ) {
         if (reservationId == null) {
             throw new ReservationNotFoundException(
                     "Reservation id can't be null"
+            );
+        }
+
+        if (userId == null) {
+            throw new IllegalArgumentException(
+                    "User id can't be null"
             );
         }
 
@@ -44,14 +52,17 @@ public class ReviewService {
         }
 
         log.info(
-                "Creating review: reservationId={}",
-                reservationId
+                "Creating review: reservationId={}, userId={}",
+                reservationId,
+                userId
         );
 
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ReservationNotFoundException(
-                        "Reservation not found with id: " + reservationId
-                ));
+                .orElseThrow(
+                        () -> new ReservationNotFoundException("Reservation not found with id: " + reservationId)
+                );
+
+        checkOwner(reservation, userId);
 
         validateRating(dto.rating());
 
@@ -63,9 +74,10 @@ public class ReviewService {
         Review savedReview = reviewRepository.save(review);
 
         log.info(
-                "Review created: id={}, reservationId={}",
+                "Review created: id={}, reservationId={}, userId={}",
                 savedReview.getId(),
-                reservationId
+                reservationId,
+                userId
         );
 
         return savedReview;
@@ -95,30 +107,62 @@ public class ReviewService {
     }
 
     @Transactional
-    public void deleteReview(UUID id) {
-
+    public void deleteReview(
+            UUID id,
+            UUID userId
+    ) {
         if (id == null) {
             throw new ReviewNotFoundException(
                     "Review id can't be null"
             );
         }
 
+        if (userId == null) {
+            throw new IllegalArgumentException(
+                    "User id can't be null"
+            );
+        }
+
         log.info(
-                "Deleting review: id={}",
-                id
+                "Deleting review: id={}, userId={}",
+                id,
+                userId
         );
 
         Review review = reviewRepository.findById(id)
-                .orElseThrow(() -> new ReviewNotFoundException(
-                        "Review not found with id: " + id
-                ));
+                .orElseThrow(
+                        () -> new ReviewNotFoundException("Review not found with id: " + id)
+                );
+
+        Reservation reservation = review.getReservation();
+
+        if (reservation == null) {
+            throw new ReservationNotFoundException(
+                    "Reservation for review not found"
+            );
+        }
+
+        checkOwner(reservation, userId);
 
         reviewRepository.delete(review);
 
         log.info(
-                "Review deleted: id={}",
-                id
+                "Review deleted: id={}, userId={}",
+                id,
+                userId
         );
+    }
+
+    private void checkOwner(
+            Reservation reservation,
+            UUID userId
+    ) {
+        if (reservation.getUser() == null || reservation.getUser().getId() == null || !reservation.getUser().getId().equals(userId)) {
+
+            throw new AccessDeniedException(
+                    "You don't have access to this reservation"
+            );
+        }
     }
 
     private void validateRating(Integer rating) {
