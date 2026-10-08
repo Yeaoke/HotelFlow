@@ -63,7 +63,7 @@ class ReservationControllerTest {
         reservation.setStartDate(startDate);
         reservation.setEndDate(endDate);
 
-        when(reservationService.findReservation(reservationId))
+        when(reservationService.findReservation(reservationId, roomId))
                 .thenReturn(Optional.of(reservation));
 
         mockMvc.perform(get("/api/reservations/{id}", reservationId))
@@ -73,7 +73,7 @@ class ReservationControllerTest {
                 .andExpect(jsonPath("$.startDate").value(startDate.toString()))
                 .andExpect(jsonPath("$.endDate").value(endDate.toString()));
 
-        verify(reservationService, times(1)).findReservation(reservationId);
+        verify(reservationService, times(1)).findReservation(reservationId, roomId);
     }
 
     @Test
@@ -133,7 +133,6 @@ class ReservationControllerTest {
                 .andExpect(jsonPath("$.endDate")
                         .value(endDate.toString()));
 
-        verify(reservationService, times(1))
-                .createReservation(dto, userId);
+        verify(reservationService, times(1)).createReservation(dto, userId);
     }
 }

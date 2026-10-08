@@ -50,5 +50,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
                 @Param("id") UUID id
         );
 
-        List<Reservation> findAllUserReservations(UUID userId);
+        @Query("""
+                SELECT r
+                FROM Reservation r
+                WHERE r.user = :userId
+        """)
+        List<Reservation> findAllUserReservations(
+                @Param(value = "userId") UUID userId
+        );
 }

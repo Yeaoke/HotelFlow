@@ -58,7 +58,7 @@ class ReservationServiceTest {
         when(roomRepository.findByIdForUpdate(roomId))
                                 .thenReturn(Optional.of(room));
 
-        reservationService.deleteReservation(reservationId);
+        reservationService.deleteReservation(reservationId, roomId);
 
         verify(reservationRepository, times(1)).findByIdForUpdate(reservationId);
         verify(reservationRepository, times(1)).delete(reservation);
@@ -95,7 +95,7 @@ class ReservationServiceTest {
         when(reservationRepository.save(any(Reservation.class)))
                                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Reservation result = reservationService.updateReservation(id, dto);
+        Reservation result = reservationService.updateReservation(id, dto, roomId);
 
         assertNotNull(result);
         assertEquals(start, result.getStartDate());
