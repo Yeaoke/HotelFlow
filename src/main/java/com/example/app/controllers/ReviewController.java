@@ -23,139 +23,124 @@ import java.util.UUID;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/reviews")
+@RequestMapping("/api/reservations/{reservationId}/reviews")
 @SecurityRequirement(name = "Bearer Authentication")
 public class ReviewController {
 
     private final ReviewService reviewService;
 
     @Operation(
-            summary = "Создать отзыв",
-            description = "Создаёт отзыв к бронированию текущего авторизованного пользователя"
-    )
+        summary = "Создать отзыв",
+        description = "Создаёт отзыв к бронированию текущего авторизованного пользователя")
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Отзыв успешно создан"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректные данные отзыва"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к данному бронированию"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Бронирование не найдено"
-            )
+        @ApiResponse(
+            responseCode = "201", 
+            description = "Отзыв успешно создан"
+        ),
+        @ApiResponse(
+            responseCode = "400", 
+            description = "Некорректные данные отзыва"
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "Пользователь не авторизован"
+        ),
+        @ApiResponse(
+            responseCode = "403", 
+            description = "Нет доступа к данному бронированию"
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "Бронирование не найдено"
+        )
     })
-    @PostMapping("/{reservationId}")
+    @PostMapping
     public ResponseEntity<Review> createReview(
             @PathVariable UUID reservationId,
             Authentication authentication,
             @RequestBody @Valid ReviewRequest dto
     ) {
         UUID userId = getUserId(authentication);
-
-        Review createdReview =
-                reviewService.createReview(
-                        dto,
-                        reservationId,
-                        userId
-                );
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(createdReview);
+        Review createdReview = reviewService.createReview(dto, reservationId, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdReview);
     }
 
     @Operation(
-            summary = "Получить отзыв",
-            description = "Возвращает отзыв по указанному идентификатору"
-    )
+        summary = "Получить отзыв",
+        description = "Возвращает отзыв по указанному идентификатору")
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Отзыв успешно получен"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Отзыв не найден"
-            )
+        @ApiResponse(
+            responseCode = "200", 
+            description = "Отзыв успешно получен"
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "Пользователь не авторизован"
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "Отзыв не найден"
+        )
     })
-    @GetMapping("/{id}")
+    @GetMapping("/{reviewId}")
     public ResponseEntity<Review> getReviewById(
-            @PathVariable UUID id
+            @PathVariable UUID reservationId,
+            @PathVariable UUID reviewId
     ) {
-        return reviewService.getReviewById(id)
+        return reviewService.getReviewById(reviewId)
                 .map(ResponseEntity::ok)
-                .orElseGet(
-                        () -> ResponseEntity.notFound().build()
-                );
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @Operation(
-            summary = "Получить список отзывов",
-            description = "Возвращает список всех отзывов"
-    )
+        summary = "Получить список отзывов",
+        description = "Возвращает список всех отзывов")
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Отзывы успешно получены"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            )
+        @ApiResponse(
+            responseCode = "200", 
+            description = "Отзывы успешно получены"
+        ),
+        @ApiResponse(
+            responseCode = "401",  
+            description = "Пользователь не авторизован"
+        )
     })
     @GetMapping
-    public ResponseEntity<List<Review>> getAllReviews() {
-        return ResponseEntity.ok(
-                reviewService.getAllReviews()
-        );
+    public ResponseEntity<List<Review>> getAllReviews(
+            @PathVariable UUID reservationId
+    ) {
+        return ResponseEntity.ok(reviewService.getAllReviews());
     }
 
     @Operation(
-            summary = "Удалить отзыв",
-            description = "Удаляет отзыв текущего авторизованного пользователя"
-    )
+        summary = "Удалить отзыв",
+        description = "Удаляет отзыв текущего авторизованного пользователя")
     @ApiResponses({
-            @ApiResponse(
-                    responseCode = "204",
-                    description = "Отзыв успешно удалён"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к данному отзыву"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Отзыв не найден"
-            )
+        @ApiResponse(
+            responseCode = "204", 
+            description = "Отзыв успешно удалён"
+        ),
+        @ApiResponse(
+            responseCode = "401", 
+            description = "Пользователь не авторизован"
+        ),
+        @ApiResponse(
+            responseCode = "403", 
+            description = "Нет доступа к данному отзыву"
+        ),
+        @ApiResponse(
+            responseCode = "404", 
+            description = "Отзыв не найден"
+        )
     })
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{reviewId}")
     public ResponseEntity<Void> deleteReview(
-            @PathVariable UUID id,
+            @PathVariable UUID reservationId,
+            @PathVariable UUID reviewId,
             Authentication authentication
     ) {
         UUID userId = getUserId(authentication);
-
-        reviewService.deleteReview(id, userId);
-
+        reviewService.deleteReview(reviewId, userId);
         return ResponseEntity.noContent().build();
     }
 
