@@ -3,11 +3,11 @@ server:
 
 spring:
   profiles:
-    active: dev
+    active: ${PROFILE}
 
 security:
   jwt:
-    secret_key: ${SECRET_KEY:4eeab38d706831be4b36612ead768ef8182d1dd6f0e14e5dc934652e297fb16a}
+    secret_key: ${SECRET_KEY}
     access_token_expiration: ${ACCESS_TOKEN_EXPIRATION:36000000}
     refresh_token_expiration: ${REFRESH_TOKEN_EXPIRATION:252000000}
 
@@ -20,8 +20,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/reservation_info
-    username: ${POSTGRES_USERNAME:postgres}
-    password: ${POSTGRES_PASSWORD:MaL8033038}
+    username: ${POSTGRES_USERNAME}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
     hikari:
@@ -37,8 +37,8 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
   jpa:
     properties:
