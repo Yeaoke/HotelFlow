@@ -3,14 +3,13 @@ server:
 
 spring:
   profiles:
-    active: ${PROFILE}
+    active: ${PROFILE:dev}
 
 security:
   jwt:
     secret_key: ${SECRET_KEY}
     access_token_expiration: ${ACCESS_TOKEN_EXPIRATION:36000000}
     refresh_token_expiration: ${REFRESH_TOKEN_EXPIRATION:252000000}
-
 
 ---
 spring:
@@ -20,10 +19,9 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/reservation_info
-    username: ${POSTGRES_USERNAME}
+    username: ${POSTGRES_USERNAME:postgres}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
     hikari:
       connection-timeout: 20000
       minimum-idle: 5
@@ -37,24 +35,21 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: ${REDIS_HOST_DEV:localhost}
+      port: ${REDIS_PORT:6379}
 
   jpa:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-
     hibernate:
       ddl-auto: update
-
     show-sql: true
 
 logging:
   level:
     com.example.app: DEBUG
     org.springframework.security: DEBUG
-
 
 ---
 spring:
@@ -64,10 +59,9 @@ spring:
 
   datasource:
     url: jdbc:postgresql://database:5432/reservation_info
-    username: ${POSTGRES_USERNAME}
+    username: ${POSTGRES_USERNAME:postgres}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
     hikari:
       connection-timeout: 20000
       minimum-idle: 5
@@ -78,17 +72,15 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:redis}
+      host: ${REDIS_HOST_PROD:redis}
       port: ${REDIS_PORT:6379}
 
   jpa:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-
     hibernate:
       ddl-auto: validate
-
     show-sql: false
 
 logging:

@@ -66,33 +66,6 @@ public class ReviewController {
     }
 
     @Operation(
-        summary = "Получить отзыв",
-        description = "Возвращает отзыв по указанному идентификатору")
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200", 
-            description = "Отзыв успешно получен"
-        ),
-        @ApiResponse(
-            responseCode = "401", 
-            description = "Пользователь не авторизован"
-        ),
-        @ApiResponse(
-            responseCode = "404", 
-            description = "Отзыв не найден"
-        )
-    })
-    @GetMapping("/{reviewId}")
-    public ResponseEntity<Review> getReviewById(
-            @PathVariable UUID reservationId,
-            @PathVariable UUID reviewId
-    ) {
-        return reviewService.getReviewById(reviewId)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    @Operation(
         summary = "Получить список отзывов",
         description = "Возвращает список всех отзывов")
     @ApiResponses({
