@@ -2,11 +2,13 @@ package com.example.app.controllers;
 
 import com.example.app.dto.auth.login.input.LoginRequest;
 import com.example.app.dto.auth.login.input.RegisterRequest;
-import com.example.app.dto.auth.login.input.VerifyOTPRequest;
+import com.example.app.dto.auth.login.input.VerifyRequest;
 import com.example.app.dto.auth.login.output.LoginResponse;
 import com.example.app.dto.auth.login.output.RegisterResponse;
+import com.example.app.dto.auth.login.output.VerifyResponse;
 import com.example.app.dto.user.input.UserInfoRequest;
 import com.example.app.dto.user.output.UserInfoResponse;
+import com.example.app.dto.user.output.UserUpdateResponse;
 import com.example.app.services.AuthenticationService;
 import com.example.app.services.UserService;
 
@@ -80,12 +82,12 @@ public class UserController {
             )
     })
     @PostMapping("/register/verify")
-    public ResponseEntity<Void> verify(
-            @Valid @RequestBody VerifyOTPRequest request
+    public ResponseEntity<VerifyResponse> verify(
+            @Valid @RequestBody VerifyRequest request
     ) {
-        authenticationService.verifyUser(request);
-
-        return ResponseEntity.ok().build();
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(authenticationService.verifyUser(request));
     }
 
     @Operation(
@@ -168,19 +170,27 @@ public class UserController {
             )
     })
     @SecurityRequirement(name = "Bearer Authentication")
-    @PutMapping("/me")
-    public ResponseEntity<Void> updateCurrentUser(
+    @PutMapping("/me/update")
+    public ResponseEntity<UserUpdateResponse> updateCurrentUser(
             Authentication authentication,
             @Valid @RequestBody UserInfoRequest request
     ) {
         UUID userId = getUserId(authentication);
 
-        userService.updateUserDetails(userId, request);
-
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(
+            userService.updateUserDetails(userId, request)
+        );
     }
 
     private UUID getUserId(Authentication authentication) {
+        if (authentication == null
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
+            throw new IllegalArgumentException(
+                "Authenticated user is required"
+            );
+        }
+
         return UUID.fromString(authentication.getName());
     }
 }

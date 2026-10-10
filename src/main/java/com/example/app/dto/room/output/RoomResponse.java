@@ -1,7 +1,7 @@
 package com.example.app.dto.room.output;
 
 public record RoomResponse(
-    String hometype,
+    String homeType,
 
     String address,
 

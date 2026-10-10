@@ -1,17 +1,13 @@
+
 package com.example.app.dto.user.output;
 
 import java.util.UUID;
 
 public record UserInfoResponse(
-    UUID userId,
-
-    String username,
-
-    String email,
-
-    String name,
-
+    UUID id,
+    String firstname,
     String lastname,
-
+    String username,
+    String email,
     String phoneNumber
 ) {}

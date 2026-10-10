@@ -8,9 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.app.dto.auth.login.input.LoginRequest;
 import com.example.app.dto.auth.login.input.RegisterRequest;
-import com.example.app.dto.auth.login.input.VerifyOTPRequest;
+import com.example.app.dto.auth.login.input.VerifyRequest;
 import com.example.app.dto.auth.login.output.LoginResponse;
 import com.example.app.dto.auth.login.output.RegisterResponse;
+import com.example.app.dto.auth.login.output.VerifyResponse;
 import com.example.app.exceptions.UserAlreadyExistsException;
 import com.example.app.exceptions.UserNotFoundException;
 import com.example.app.exceptions.verifyExceptions.UserNotVerifiedException;
@@ -106,7 +107,7 @@ public class AuthenticationService {
     }
 
     @Transactional
-    public void verifyUser(VerifyOTPRequest request) {
+    public VerifyResponse verifyUser(VerifyRequest request) {
 
         if (request == null) {
             throw new IllegalArgumentException(
@@ -160,6 +161,10 @@ public class AuthenticationService {
                 "User verified successfully: username={}",
                 user.getUsername()
         );
+
+        VerifyResponse response = new VerifyResponse("Verified");
+
+        return response;
     }
 
     @Transactional(readOnly = true)

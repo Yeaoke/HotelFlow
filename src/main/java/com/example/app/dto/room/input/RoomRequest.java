@@ -3,19 +3,13 @@ package com.example.app.dto.room.input;
 import java.util.UUID;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 
 public record RoomRequest(
 
     @NotBlank(message = "homeType cannot be empty")
     String homeType,
 
-    @Pattern(
-        regexp = "^[A-Za-z0-9\\s,.-]+$",
-        message = "address contains invalid characters"
-    )
     @NotBlank(message = "address can't be empty")
     String address,
 
@@ -34,7 +28,7 @@ public record RoomRequest(
     @NotNull(message = "price must be provided")
     Long price,
 
-    @NotEmpty(message = "user id can't be empty")
+    @NotNull(message = "user id can't be null")
     UUID userId,
 
     @NotNull(message = "latitude must be provided")
@@ -43,4 +37,3 @@ public record RoomRequest(
     @NotNull(message = "longitude must be provided")
     Double longitude
 ) {}
-

@@ -106,10 +106,10 @@ public class RoomController {
                     description = "Пользователь не найден"
             )
     })
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<RoomResponse> createRoom(
             Authentication authentication,
-            @RequestBody @Valid RoomRequest dto
+            @Valid @RequestBody RoomRequest dto
     ) {
 
         UUID userId = getUserId(authentication);
