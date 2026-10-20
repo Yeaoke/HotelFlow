@@ -34,23 +34,23 @@ public class ReviewController {
         description = "Создаёт отзыв к бронированию текущего авторизованного пользователя")
     @ApiResponses({
         @ApiResponse(
-            responseCode = "201", 
+            responseCode = "201",
             description = "Отзыв успешно создан"
         ),
         @ApiResponse(
-            responseCode = "400", 
+            responseCode = "400",
             description = "Некорректные данные отзыва"
         ),
         @ApiResponse(
-            responseCode = "401", 
+            responseCode = "401",
             description = "Пользователь не авторизован"
         ),
         @ApiResponse(
-            responseCode = "403", 
+            responseCode = "403",
             description = "Нет доступа к данному бронированию"
         ),
         @ApiResponse(
-            responseCode = "404", 
+            responseCode = "404",
             description = "Бронирование не найдено"
         )
     })
@@ -61,7 +61,9 @@ public class ReviewController {
             @RequestBody @Valid ReviewRequest dto
     ) {
         UUID userId = getUserId(authentication);
+
         Review createdReview = reviewService.createReview(dto, reservationId, userId);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReview);
     }
 
@@ -70,15 +72,15 @@ public class ReviewController {
         description = "Возвращает отзыв по указанному идентификатору")
     @ApiResponses({
         @ApiResponse(
-            responseCode = "200", 
+            responseCode = "200",
             description = "Отзыв успешно получен"
         ),
         @ApiResponse(
-            responseCode = "401", 
+            responseCode = "401",
             description = "Пользователь не авторизован"
         ),
         @ApiResponse(
-            responseCode = "404", 
+            responseCode = "404",
             description = "Отзыв не найден"
         )
     })
@@ -87,9 +89,15 @@ public class ReviewController {
             @PathVariable UUID reservationId,
             @PathVariable UUID reviewId
     ) {
-        return reviewService.getReviewById(reviewId)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        var review = reviewService.getReviewById(reviewId);
+        if (review.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (review.get().getReservation() == null
+                || !reservationId.equals(review.get().getReservation().getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(review.get());
     }
 
     @Operation(
@@ -97,11 +105,11 @@ public class ReviewController {
         description = "Возвращает список всех отзывов")
     @ApiResponses({
         @ApiResponse(
-            responseCode = "200", 
+            responseCode = "200",
             description = "Отзывы успешно получены"
         ),
         @ApiResponse(
-            responseCode = "401",  
+            responseCode = "401",
             description = "Пользователь не авторизован"
         )
     })
@@ -117,19 +125,19 @@ public class ReviewController {
         description = "Удаляет отзыв текущего авторизованного пользователя")
     @ApiResponses({
         @ApiResponse(
-            responseCode = "204", 
+            responseCode = "204",
             description = "Отзыв успешно удалён"
         ),
         @ApiResponse(
-            responseCode = "401", 
+            responseCode = "401",
             description = "Пользователь не авторизован"
         ),
         @ApiResponse(
-            responseCode = "403", 
+            responseCode = "403",
             description = "Нет доступа к данному отзыву"
         ),
         @ApiResponse(
-            responseCode = "404", 
+            responseCode = "404",
             description = "Отзыв не найден"
         )
     })
@@ -141,10 +149,15 @@ public class ReviewController {
     ) {
         UUID userId = getUserId(authentication);
         reviewService.deleteReview(reviewId, userId);
+
         return ResponseEntity.noContent().build();
     }
 
     private UUID getUserId(Authentication authentication) {
-        return UUID.fromString(authentication.getName());
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof com.example.app.models.main.User user) || user.getId() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        }
+        return user.getId();
     }
 }
+

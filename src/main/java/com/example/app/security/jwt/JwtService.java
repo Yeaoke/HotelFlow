@@ -38,14 +38,15 @@ public class JwtService {
         );
     }
 
-    public String generateAccessToken(User user) {
+    public String generateAccessToken(User user, String refreshToken) {
 
         Date now = new Date();
 
         return Jwts.builder()
-                .subject(user.getId().toString())
+                .subject(user.getUsername())
                 .id(UUID.randomUUID().toString())
                 .claim("type", "access")
+                .claim("refreshHash", hashToken(refreshToken))
                 .issuedAt(now)
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
                 .signWith(getSigningKey())
@@ -57,7 +58,7 @@ public class JwtService {
         Date now = new Date();
 
         return Jwts.builder()
-                .subject(user.getId().toString())
+                .subject(user.getUsername())
                 .id(UUID.randomUUID().toString())
                 .claim("type", "refresh")
                 .issuedAt(now)

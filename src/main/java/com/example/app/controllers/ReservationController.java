@@ -4,9 +4,7 @@ import com.example.app.dto.ReservationStatus;
 import com.example.app.dto.reservation.input.ReservationRequest;
 import com.example.app.dto.reservation.output.ReservationResponse;
 import com.example.app.models.main.Reservation;
-import com.example.app.models.main.Review;
 import com.example.app.services.ReservationService;
-import com.example.app.services.ReviewService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -23,7 +21,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -33,7 +30,6 @@ import java.util.UUID;
 public class ReservationController {
 
     private final ReservationService reservationService;
-    private final ReviewService reviewService;
 
     @Operation(
             summary = "Получить список бронирований",
@@ -219,53 +215,6 @@ public class ReservationController {
                 );
 
         return ResponseEntity.ok(toDto(reservation));
-    }
-
-    @Operation(
-            summary = "Получить отзыв о бронировании",
-            description = "Возвращает отзыв, связанный с указанным бронированием"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Отзыв успешно получен"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к данному бронированию"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Бронирование или отзыв не найдены"
-            )
-    })
-    @GetMapping("/{reservationId}/reviews/{reviewId}")
-    public ResponseEntity<Review> getReviewOfReservation(
-            @PathVariable UUID reservationId,
-            @PathVariable UUID reviewId
-    ) {
-        Optional<Review> review =
-                reviewService.getReviewById(reviewId);
-
-        if (review.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        if (!review.get()
-                .getReservation()
-                .getId()
-                .equals(reservationId)) {
-
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .build();
-        }
-
-        return ResponseEntity.ok(review.get());
     }
 
     @Operation(

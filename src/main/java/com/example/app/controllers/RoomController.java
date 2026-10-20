@@ -78,10 +78,7 @@ public class RoomController {
             @PathVariable UUID id
     ) {
 
-        return roomService.getRoomById(id)
-                .map(this::convertToResponseDTO)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return roomService.getRoomById(id).map(this::convertToResponseDTO).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @Operation(
@@ -116,9 +113,7 @@ public class RoomController {
 
         Room room = roomService.createRoom(dto, userId);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(convertToResponseDTO(room));
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertToResponseDTO(room));
     }
 
     @Operation(
@@ -157,7 +152,10 @@ public class RoomController {
     }
 
     private UUID getUserId(Authentication authentication) {
-        return UUID.fromString(authentication.getName());
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof com.example.app.models.main.User user) || user.getId() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        }
+        return user.getId();
     }
 
     private RoomResponse convertToResponseDTO(Room room) {

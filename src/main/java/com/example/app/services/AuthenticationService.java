@@ -167,7 +167,7 @@ public class AuthenticationService {
         return response;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
 
         if (request == null) {
@@ -210,9 +210,10 @@ public class AuthenticationService {
             );
         }
 
-        String accessToken = jwtService.generateAccessToken(user);
+
 
         String refreshToken = jwtService.generateRefreshToken(user);
+        String accessToken = jwtService.generateAccessToken(user, refreshToken);
 
         accessTokenService.saveAccessToken(
                 accessToken,
@@ -233,6 +234,19 @@ public class AuthenticationService {
                 accessToken,
                 refreshToken
         );
+    }
+
+    @Transactional
+    public void logout(String accessToken) {
+        String refreshHash = jwtService.extractClaim(accessToken,
+                claims -> claims.get("refreshHash", String.class));
+        if (refreshHash != null) {
+            tokenRepository.findByTokenHash(refreshHash).ifPresent(token -> {
+                token.setLoggedOut(true);
+                tokenRepository.saveAndFlush(token);
+            });
+        }
+        accessTokenService.revokeAccessToken(accessToken);
     }
 
     private void saveRefreshToken(

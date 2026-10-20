@@ -4,14 +4,16 @@ import java.io.IOException;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.example.app.exceptions.UserNotFoundException;
 import com.example.app.models.main.User;
+import com.example.app.services.AccessTokenService;
 import com.example.app.services.UserService;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,66 +21,78 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
 
-@Log4j2
-@RequiredArgsConstructor
 @Component
+@RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
-    
-    public JwtService jwtService;
 
-    private UserService userService;
-
-    public JwtFilter(JwtService jwtService, UserService userService) {
-        this.jwtService = jwtService;
-        this.userService = userService;
-    }
+    private final JwtService jwtService;
+    private final UserService userService;
+    private final AccessTokenService accessTokenService;
 
     @Override
     protected void doFilterInternal(
-        @NonNull HttpServletRequest request,
-        @NonNull HttpServletResponse response,
-        @NonNull FilterChain filterChain)
-    throws ServletException, IOException {
-        
-        final String authorizationHeader = request.getHeader("Authorization");
-        String username = null;
-        String token = null;
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
 
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        String header = request.getHeader("Authorization");
+
+        if (header == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        if (authorizationHeader != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            token = authorizationHeader.substring(7);
-            try {
-                username = jwtService.extractUsername(token);
-            } catch (JwtException | IllegalArgumentException e) {
-                log.debug("Invalid JWT token", e);;
-            }
+        if (!header.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            unauthorized(response);
+            return;
         }
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
-                User user = this.userService.getUserByUsername(username);
-            
-                if (jwtService.isValid(token)) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        user,
-                        null,
-                        user.getAuthorities()
-                    );
-                
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                }
-            } catch (UsernameNotFoundException e) {
-                log.debug("Username not found - {}", username);
+        String token = header.substring(7).trim();
+
+        try {
+            Claims claims = jwtService.extractClaim(token, value -> value);
+
+            String username = claims.getSubject();
+
+            if (!"access".equals(claims.get("type", String.class)) || claims.getExpiration() == null || username == null || username.isBlank()) {
+                unauthorized(response);
+                return;
             }
-            filterChain.doFilter(request, response);
+
+            if (!accessTokenService.isAccessTokenValid(token)) {
+                unauthorized(response);
+                return;
+            }
+
+            User user = userService.getUserByUsername(username);
+
+            if (!user.isVerified() || !user.isEnabled() || !user.isAccountNonLocked() || !user.isAccountNonExpired() || !user.isCredentialsNonExpired()) {
+                unauthorized(response);
+                return;
+            }
+
+            var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+
+            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+            var context = SecurityContextHolder.createEmptyContext();
+            
+            context.setAuthentication(authentication);
+            
+            SecurityContextHolder.setContext(context);
+
+        } catch (JwtException | IllegalArgumentException | UserNotFoundException exception) {
+            unauthorized(response);
+            return;
         }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private void unauthorized(HttpServletResponse response) {
+        SecurityContextHolder.clearContext();
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
     }
 }

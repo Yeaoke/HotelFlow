@@ -58,9 +58,7 @@ public class UserController {
     public ResponseEntity<RegisterResponse> register(
             @Valid @RequestBody RegisterRequest request
     ) {
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(authenticationService.register(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(authenticationService.register(request));
     }
 
     @Operation(
@@ -85,9 +83,7 @@ public class UserController {
     public ResponseEntity<VerifyResponse> verify(
             @Valid @RequestBody VerifyRequest request
     ) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(authenticationService.verifyUser(request));
+        return ResponseEntity.status(HttpStatus.OK).body(authenticationService.verifyUser(request));
     }
 
     @Operation(
@@ -112,8 +108,7 @@ public class UserController {
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request
     ) {
-        return ResponseEntity.ok(
-                authenticationService.login(request)
+        return ResponseEntity.ok(authenticationService.login(request)
         );
     }
 
@@ -142,8 +137,7 @@ public class UserController {
     ) {
         UUID userId = getUserId(authentication);
 
-        return ResponseEntity.ok(
-                userService.getUserProfile(userId)
+        return ResponseEntity.ok(userService.getUserProfile(userId)
         );
     }
 
@@ -177,20 +171,23 @@ public class UserController {
     ) {
         UUID userId = getUserId(authentication);
 
-        return ResponseEntity.ok(
-            userService.updateUserDetails(userId, request)
-        );
+        return ResponseEntity.ok(userService.updateUserDetails(userId, request));
+    }
+
+    @PostMapping("/logout")
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<Void> logout(Authentication authentication,
+            @RequestHeader("Authorization") String authorization) {
+        getUserId(authentication);
+        authenticationService.logout(authorization.substring(7).trim());
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        return ResponseEntity.noContent().build();
     }
 
     private UUID getUserId(Authentication authentication) {
-        if (authentication == null
-                || authentication.getName() == null
-                || authentication.getName().isBlank()) {
-            throw new IllegalArgumentException(
-                "Authenticated user is required"
-            );
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof com.example.app.models.main.User user) || user.getId() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
-
-        return UUID.fromString(authentication.getName());
+        return user.getId();
     }
 }

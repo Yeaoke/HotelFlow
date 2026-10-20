@@ -16,22 +16,27 @@ public class AccessTokenService {
 
     private static final String PREFIX = "access_token:";
 
-    private static final Duration ACCESS_TOKEN_TTL = Duration.ofMinutes(15);
+    private final com.example.app.security.jwt.JwtService jwtService;
 
     public void saveAccessToken(String token, User user) {
 
-        String key = PREFIX + token;
+        String key = PREFIX + jwtService.hashToken(token);
+
+        Duration ttl = Duration.between(java.time.Instant.now(), jwtService.extractExpiration(token).toInstant());
+        if (ttl.isNegative() || ttl.isZero()) {
+            throw new IllegalArgumentException("Access token has expired");
+        }
 
         redisTemplate.opsForValue().set(
                 key,
                 user.getId().toString(),
-                ACCESS_TOKEN_TTL
+                ttl
         );
     }
 
     public boolean isAccessTokenValid(String token) {
 
-        String key = PREFIX + token;
+        String key = PREFIX + jwtService.hashToken(token);
 
         return Boolean.TRUE.equals(
                 redisTemplate.hasKey(key)
@@ -39,7 +44,7 @@ public class AccessTokenService {
     }
 
     public void revokeAccessToken(String token) {
-        String key = PREFIX + token;
+        String key = PREFIX + jwtService.hashToken(token);
 
         redisTemplate.delete(key);
     }

@@ -58,7 +58,7 @@ class ReviewControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(reviewController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(reviewController, new com.example.app.controllers.ReservationController(org.mockito.Mockito.mock(com.example.app.services.ReservationService.class))).build();
         objectMapper = new ObjectMapper();
 
         userId = UUID.randomUUID();
@@ -69,7 +69,10 @@ class ReviewControllerTest {
     @Test
     void createReview_true() throws Exception {
 
-        when(authentication.getName()).thenReturn(userId.toString());
+        var principal = new com.example.app.models.main.User();
+        principal.setId(userId);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(principal);
 
         ReviewRequest request = new ReviewRequest(reservationId, 8);
 
@@ -103,8 +106,17 @@ class ReviewControllerTest {
 
     @Test
     void getReviewById_true() throws Exception {
+        var reservation = new com.example.app.models.main.Reservation();
+        reservation.setId(reservationId);
+        var user = new com.example.app.models.main.User();
+        user.setId(userId);
+        reservation.setUser(user);
+        var room = new com.example.app.models.main.Room();
+        room.setId(UUID.randomUUID());
+        reservation.setRoom(room);
 
         Review review = new Review();
+        review.setReservation(reservation);
         review.setId(reviewId);
         review.setRating(8);
 
@@ -168,7 +180,10 @@ class ReviewControllerTest {
     @Test
     void deleteReview_true() throws Exception {
 
-        when(authentication.getName()).thenReturn(userId.toString());
+        var principal = new com.example.app.models.main.User();
+        principal.setId(userId);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(principal);
 
         doNothing().when(reviewService)
                 .deleteReview(reviewId, userId);

@@ -53,7 +53,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Query("""
                 SELECT r
                 FROM Reservation r
-                WHERE r.user = :userId
+                WHERE r.user.id = :userId
         """)
         List<Reservation> findAllUserReservations(
                 @Param(value = "userId") UUID userId
