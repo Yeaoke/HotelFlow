@@ -1,27 +1,17 @@
 package com.example.app.repos.main;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-
 import com.example.app.models.main.User;
-
-public interface UserRepository extends JpaRepository<User, UUID> {
-
-    @Query("""
-        SELECT DISTINCT r.user
-        FROM Reservation r
-        JOIN Review rev ON rev.reservation = r
-    """)
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
+import java.util.*;
+public interface UserRepository extends JpaRepository<User,UUID> {
+    @Query("select distinct r.user from Reservation r join Review rev on rev.reservation = r")
     List<User> findAllUsersWhoMadeReview();
-    
     Optional<User> findByEmail(String email);
-
     Optional<User> findByUsername(String username);
-
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.username = :username")
+    Optional<User> findByUsernameForUpdate(@Param("username") String username);
 }

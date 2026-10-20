@@ -1,39 +1,37 @@
 package com.example.app.dto.room.input;
-
-import java.util.UUID;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
+import jakarta.validation.constraints.*;
 public record RoomRequest(
-
-    @NotBlank(message = "homeType cannot be empty")
+    @NotBlank
+    @Size(max=100)
     String homeType,
 
-    @NotBlank(message = "address can't be empty")
+    @NotBlank
+    @Size(max=255)
     String address,
 
-    @NotNull(message = "room must have info about TV")
+    @NotNull
     Boolean hasTV,
 
-    @NotNull(message = "room must have info about kitchen")
+    @NotNull
     Boolean hasKitchen,
 
-    @NotNull(message = "room must have info about Internet")
+    @NotNull
     Boolean hasInternet,
 
-    @NotNull(message = "room must have info about Air con")
+    @NotNull
     Boolean hasAirCon,
 
-    @NotNull(message = "price must be provided")
+    @NotNull
+    @PositiveOrZero
     Long price,
 
-    @NotNull(message = "user id can't be null")
-    UUID userId,
-
-    @NotNull(message = "latitude must be provided")
+    @NotNull
+    @DecimalMin("-90")
+    @DecimalMax("90")
     Double latitude,
 
-    @NotNull(message = "longitude must be provided")
+    @NotNull
+    @DecimalMin("-180")
+    @DecimalMax("180")
     Double longitude
 ) {}

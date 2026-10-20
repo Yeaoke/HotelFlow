@@ -1,129 +1,54 @@
 package com.example.app.security.jwt;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import com.example.app.models.main.User;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-
+import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import com.example.app.models.main.User;
-
-import javax.crypto.SecretKey;
-
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Date;
-import java.util.HexFormat;
-import java.util.UUID;
+import java.security.*;
+import java.time.Instant;
+import java.util.*;
 import java.util.function.Function;
-
 @Service
 public class JwtService {
-
-    @Value("${security.jwt.secret_key}")
-    private String secretKey;
-
-    @Value("${security.jwt.access_token_expiration}")
-    private long accessTokenExpiration;
-
-    @Value("${security.jwt.refresh_token_expiration}")
-    private long refreshTokenExpiration;
-
-    private SecretKey getSigningKey() {
-
-        return Keys.hmacShaKeyFor(
-                secretKey.getBytes(StandardCharsets.UTF_8)
-        );
+    private final SecretKey key;
+    private final long accessMillis;
+    private final long refreshMillis;
+    public JwtService(@Value("${security.jwt.secret_key}") String secret,
+                      @Value("${security.jwt.access_token_expiration:900000}") long accessMillis,
+                      @Value("${security.jwt.refresh_token_expiration:604800000}") long refreshMillis) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        if (accessMillis <= 0 || refreshMillis < accessMillis) throw new IllegalArgumentException("Invalid token lifetimes");
+        this.accessMillis=accessMillis; this.refreshMillis=refreshMillis;
     }
-
-    public String generateAccessToken(User user, String refreshToken) {
-
-        Date now = new Date();
-
-        return Jwts.builder()
-                .subject(user.getUsername())
-                .id(UUID.randomUUID().toString())
-                .claim("type", "access")
-                .claim("refreshHash", hashToken(refreshToken))
-                .issuedAt(now)
-                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-                .signWith(getSigningKey())
-                .compact();
+    public Instant sessionExpiration() { return Instant.now().plusMillis(refreshMillis); }
+    public String generateAccessToken(User user, UUID sessionId, Instant sessionExpires) {
+        Instant expires=Instant.now().plusMillis(accessMillis);
+        return generate(user,sessionId,"access",expires.isBefore(sessionExpires)?expires:sessionExpires);
     }
-
-    public String generateRefreshToken(User user) {
-
-        Date now = new Date();
-
-        return Jwts.builder()
-                .subject(user.getUsername())
-                .id(UUID.randomUUID().toString())
-                .claim("type", "refresh")
-                .issuedAt(now)
-                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
-                .signWith(getSigningKey())
-                .compact();
+    public String generateRefreshToken(User user, UUID sessionId, Instant expires) {
+        return generate(user,sessionId,"refresh",expires);
     }
-
-    public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+    private String generate(User user, UUID sid, String type, Instant expires) {
+        return Jwts.builder().issuer("hotelflow").subject(user.getId().toString())
+            .id(UUID.randomUUID().toString()).claim("sid",sid.toString()).claim("type",type)
+            .issuedAt(new Date()).expiration(Date.from(expires)).signWith(key).compact();
     }
-
-    public String extractTokenType(String token) {
-        return extractClaim(token, claims -> claims.get("type", String.class));
+    public Claims parse(String token, String type) {
+        Claims claims=Jwts.parser().verifyWith(key).requireIssuer("hotelflow")
+            .require("type",type).build().parseSignedClaims(token).getPayload();
+        if (claims.getExpiration()==null || claims.getId()==null) throw new JwtException("Missing token claims");
+        UUID.fromString(claims.getSubject());
+        UUID.fromString(claims.get("sid",String.class));
+        return claims;
     }
-
-    public String extractJti(String token) {
-        return extractClaim(token, Claims::getId);
+    public <T> T extractClaim(String token, Function<Claims,T> resolver) {
+        return resolver.apply(Jwts.parser().verifyWith(key).requireIssuer("hotelflow").build().parseSignedClaims(token).getPayload());
     }
-
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> resolver) {
-
-        Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
-        return resolver.apply(claims);
-    }
-
-    public boolean isExpired(String token) {
-    return extractExpiration(token).before(new Date());
-    }
-
-    public boolean isValid(String token) {
-        try {
-            Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token);
-            return !isExpired(token);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public boolean isRefreshToken(String token) {
-
-        return "refresh".equals(
-                extractTokenType(token)
-        );
-    }
-
+    public Date extractExpiration(String token) { return extractClaim(token,Claims::getExpiration); }
     public String hashToken(String token) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8))); }
+        catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
     }
 }

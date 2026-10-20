@@ -1,51 +1,75 @@
 package com.example.app.services;
-
-import lombok.RequiredArgsConstructor;
+import com.example.app.security.jwt.JwtService;
+import com.example.app.repos.token.TokenRepository;
+import com.example.app.models.main.User;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-
-import java.time.Duration;
-
-import com.example.app.models.main.User;
-
-@Service
-@RequiredArgsConstructor
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.authentication.BadCredentialsException;
+import lombok.RequiredArgsConstructor;
+import java.time.*;
+import java.util.UUID;
+@Service @RequiredArgsConstructor
 public class AccessTokenService {
-
-    private final StringRedisTemplate redisTemplate;
-
+    
+    private final StringRedisTemplate redis;
+    private final JwtService jwt;
+    private final TokenRepository tokens;
+    
     private static final String PREFIX = "access_token:";
+    
+    public void saveAccessToken(
+        String token,
+        UUID sessionId
+    ) {
+        Duration ttl = Duration.between(Instant.now(),jwt.extractExpiration(token).toInstant());
 
-    private final com.example.app.security.jwt.JwtService jwtService;
-
-    public void saveAccessToken(String token, User user) {
-
-        String key = PREFIX + jwtService.hashToken(token);
-
-        Duration ttl = Duration.between(java.time.Instant.now(), jwtService.extractExpiration(token).toInstant());
         if (ttl.isNegative() || ttl.isZero()) {
-            throw new IllegalArgumentException("Access token has expired");
+            throw new BadCredentialsException(
+                "Expired token"
+            );
         }
 
-        redisTemplate.opsForValue().set(
-                key,
-                user.getId().toString(),
-                ttl
-        );
+        redis.opsForValue().set(PREFIX+jwt.hashToken(token),sessionId.toString(),ttl);
     }
 
-    public boolean isAccessTokenValid(String token) {
+    @Transactional(readOnly=true)
+    public User authenticate(
+        String token,
+        UUID sessionId,
+        UUID userId
+    ) {
+        String hash=jwt.hashToken(token);
+        
+        if (!sessionId.toString().equals(redis.opsForValue().get(PREFIX+hash))) {
+            throw new BadCredentialsException(
+                "Invalid session"
+            );
+        }
+        
+        var session=tokens.findById(sessionId).orElseThrow(()->new BadCredentialsException("Invalid session"));
+        
+        if (session.isLoggedOut() || !session.getExpiresAt().isAfter(Instant.now()) || !hash.equals(session.getAccessHash()) || !userId.equals(session.getUser().getId())){ 
+            throw new BadCredentialsException(
+                "Invalid session"
+            );
+        }
+        
+        User user = session.getUser();
+        
+        if (!user.isVerified() || !user.isEnabled() || !user.isAccountNonLocked()) {
+            throw new BadCredentialsException(
+                "Invalid account"
+            );
+        }
 
-        String key = PREFIX + jwtService.hashToken(token);
+        user.getUsername();
 
-        return Boolean.TRUE.equals(
-                redisTemplate.hasKey(key)
-        );
+        return user;
     }
-
-    public void revokeAccessToken(String token) {
-        String key = PREFIX + jwtService.hashToken(token);
-
-        redisTemplate.delete(key);
+    public void revokeHash(String hash) {
+        if (hash != null) {
+            redis.delete(PREFIX+hash);
+        }
     }
 }

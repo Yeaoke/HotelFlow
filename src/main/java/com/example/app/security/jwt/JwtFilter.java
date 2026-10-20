@@ -1,98 +1,50 @@
 package com.example.app.security.jwt;
-
-import java.io.IOException;
-
+import com.example.app.services.AccessTokenService;
+import com.example.app.exceptions.ApiError;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import com.example.app.exceptions.UserNotFoundException;
-import com.example.app.models.main.User;
-import com.example.app.services.AccessTokenService;
-import com.example.app.services.UserService;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-
-@Component
-@RequiredArgsConstructor
+import java.io.IOException;
+import java.util.UUID;
+@Component @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
-
-    private final JwtService jwtService;
-    private final UserService userService;
-    private final AccessTokenService accessTokenService;
-
-    @Override
-    protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
-
-        String header = request.getHeader("Authorization");
-
-        if (header == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        if (!header.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            unauthorized(response);
-            return;
-        }
-
-        String token = header.substring(7).trim();
-
-        try {
-            Claims claims = jwtService.extractClaim(token, value -> value);
-
-            String username = claims.getSubject();
-
-            if (!"access".equals(claims.get("type", String.class)) || claims.getExpiration() == null || username == null || username.isBlank()) {
-                unauthorized(response);
-                return;
-            }
-
-            if (!accessTokenService.isAccessTokenValid(token)) {
-                unauthorized(response);
-                return;
-            }
-
-            User user = userService.getUserByUsername(username);
-
-            if (!user.isVerified() || !user.isEnabled() || !user.isAccountNonLocked() || !user.isAccountNonExpired() || !user.isCredentialsNonExpired()) {
-                unauthorized(response);
-                return;
-            }
-
-            var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            var context = SecurityContextHolder.createEmptyContext();
-            
-            context.setAuthentication(authentication);
-            
-            SecurityContextHolder.setContext(context);
-
-        } catch (JwtException | IllegalArgumentException | UserNotFoundException exception) {
-            unauthorized(response);
-            return;
-        }
-
-        filterChain.doFilter(request, response);
+    private final JwtService jwt;
+    private final AccessTokenService access;
+    @Override protected boolean shouldNotFilter(HttpServletRequest request) {
+        // Public auth endpoints authenticate their own credentials, including refresh.
+        return "POST".equals(request.getMethod()) && java.util.Set.of(
+            "/api/auth/login","/api/auth/register","/api/auth/register/verify",
+            "/api/auth/register/resend","/api/auth/refresh").contains(request.getServletPath());
     }
-
-    private void unauthorized(HttpServletResponse response) {
-        SecurityContextHolder.clearContext();
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)
+            throws IOException,ServletException {
+        String header=request.getHeader("Authorization");
+        if (header==null) { chain.doFilter(request,response); return; }
+        try {
+            if (!header.regionMatches(true,0,"Bearer ",0,7)) throw new IllegalArgumentException();
+            String token=header.substring(7).trim();
+            var claims=jwt.parse(token,"access");
+            var user=access.authenticate(token,UUID.fromString(claims.get("sid",String.class)),UUID.fromString(claims.getSubject()));
+            var auth=new UsernamePasswordAuthenticationToken(user,null,user.getAuthorities());
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            var context=SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(auth); SecurityContextHolder.setContext(context);
+        } catch (JwtException | IllegalArgumentException | AuthenticationException e) {
+            SecurityContextHolder.clearContext();
+            com.example.app.security.SecurityErrors.write(response,401,"Authentication required",request.getRequestURI());
+            return;
+        } catch (org.springframework.dao.DataAccessException e) {
+            SecurityContextHolder.clearContext();
+            com.example.app.security.SecurityErrors.write(response,503,"Authentication service unavailable",request.getRequestURI());
+            return;
+        }
+        chain.doFilter(request,response);
     }
 }

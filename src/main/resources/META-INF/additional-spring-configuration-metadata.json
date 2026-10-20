@@ -23,5 +23,15 @@
     "name": "security.jwt.secret_key",
     "type": "java.lang.String",
     "description": "A description for 'security.jwt.secret_key'"
+  },
+  {
+    "name": "management.endpoints.web.error.include-message",
+    "type": "java.lang.String",
+    "description": "A description for 'management.endpoints.web.error.include-message'"
+  },
+  {
+    "name": "management.endpoints.web.error.include-stacktrace",
+    "type": "java.lang.String",
+    "description": "A description for 'management.endpoints.web.error.include-stacktrace'"
   }
 ]}

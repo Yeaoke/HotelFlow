@@ -1,193 +1,97 @@
 package com.example.app.controllers;
-
-import com.example.app.dto.auth.login.input.LoginRequest;
-import com.example.app.dto.auth.login.input.RegisterRequest;
-import com.example.app.dto.auth.login.input.VerifyRequest;
-import com.example.app.dto.auth.login.output.LoginResponse;
-import com.example.app.dto.auth.login.output.RegisterResponse;
-import com.example.app.dto.auth.login.output.VerifyResponse;
+import com.example.app.dto.auth.login.input.*;
+import com.example.app.dto.auth.login.output.*;
 import com.example.app.dto.user.input.UserInfoRequest;
-import com.example.app.dto.user.output.UserInfoResponse;
-import com.example.app.dto.user.output.UserUpdateResponse;
-import com.example.app.services.AuthenticationService;
-import com.example.app.services.UserService;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-
+import com.example.app.dto.user.output.*;
+import com.example.app.services.*;
+import com.example.app.security.CurrentUser;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
-
-@RestController
-@RequestMapping("/api/auth")
-@RequiredArgsConstructor
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+@RestController @RequestMapping("/api/auth") @RequiredArgsConstructor
 public class UserController {
 
-    private final UserService userService;
-    private final AuthenticationService authenticationService;
+    private final UserService users;
+    private final AuthenticationService auth;
+    private final AuthRateLimiter limits;
 
-    @Operation(
-            summary = "Регистрация пользователя",
-            description = "Регистрирует нового пользователя и отправляет OTP-код"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Пользователь успешно зарегистрирован"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректные данные"
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Пользователь уже существует"
-            )
-    })
+    @Operation(summary="Register and send an email verification code")
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(
-            @Valid @RequestBody RegisterRequest request
+    @ResponseStatus(HttpStatus.CREATED)
+    public RegisterResponse register(
+        @Valid @RequestBody RegisterRequest request,
+        HttpServletRequest http
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authenticationService.register(request));
+        limits.check("register",http.getRemoteAddr());
+        
+        return auth.register(request,http.getRemoteAddr());
     }
 
-    @Operation(
-            summary = "Подтвердить регистрацию",
-            description = "Подтверждает регистрацию пользователя с помощью OTP-кода"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Пользователь успешно подтверждён"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректный или просроченный OTP-код"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Пользователь не найден"
-            )
-    })
     @PostMapping("/register/verify")
-    public ResponseEntity<VerifyResponse> verify(
-            @Valid @RequestBody VerifyRequest request
+    public VerifyResponse verify(
+        @Valid @RequestBody VerifyRequest request,
+        HttpServletRequest http
     ) {
-        return ResponseEntity.status(HttpStatus.OK).body(authenticationService.verifyUser(request));
+        limits.check("verify",http.getRemoteAddr()); return auth.verifyUser(request);
     }
 
-    @Operation(
-            summary = "Авторизация",
-            description = "Авторизует пользователя и возвращает access и refresh токены"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Авторизация успешна"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректные данные"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Неверный логин или пароль"
-            )
-    })
+    @PostMapping("/register/resend")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resend(
+        @Valid @RequestBody ResendRequest request,
+        HttpServletRequest http
+    ) {
+        limits.check("resend", http.getRemoteAddr());
+
+        auth.resend(request,http.getRemoteAddr());
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request
+    public LoginResponse login(
+        @Valid @RequestBody LoginRequest request,
+        HttpServletRequest http
     ) {
-        return ResponseEntity.ok(authenticationService.login(request)
-        );
+        limits.check("login", http.getRemoteAddr());
+
+        return auth.login(request);
     }
 
-    @Operation(
-            summary = "Получить текущего пользователя",
-            description = "Возвращает профиль текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Профиль успешно получен"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Пользователь не найден"
-            )
-    })
-    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary="Rotate a refresh token; the previous token pair becomes invalid")
+    @PostMapping("/refresh")
+    public LoginResponse refresh(@Valid @RequestBody RefreshRequest request,HttpServletRequest http) {
+        limits.check("refresh",http.getRemoteAddr()); return auth.refresh(request.refreshToken());
+    }
+
     @GetMapping("/me")
-    public ResponseEntity<UserInfoResponse> getCurrentUser(
-            Authentication authentication
-    ) {
-        UUID userId = getUserId(authentication);
-
-        return ResponseEntity.ok(userService.getUserProfile(userId)
-        );
+    @SecurityRequirement(name="Bearer Authentication")
+    public UserInfoResponse me(Authentication authentication) {
+        return users.getUserProfile(CurrentUser.id(authentication));
     }
 
-    @Operation(
-            summary = "Обновить профиль",
-            description = "Обновляет данные текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Профиль успешно обновлён"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректные данные"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Пользователь не найден"
-            )
-    })
-    @SecurityRequirement(name = "Bearer Authentication")
-    @PutMapping("/me/update")
-    public ResponseEntity<UserUpdateResponse> updateCurrentUser(
-            Authentication authentication,
-            @Valid @RequestBody UserInfoRequest request
+    @PutMapping("/me")
+    @SecurityRequirement(name="Bearer Authentication")
+    public UserUpdateResponse update(
+        Authentication authentication,
+        @Valid @RequestBody UserInfoRequest request
     ) {
-        UUID userId = getUserId(authentication);
-
-        return ResponseEntity.ok(userService.updateUserDetails(userId, request));
+        return users.updateUserDetails(CurrentUser.id(authentication), request);
     }
 
     @PostMapping("/logout")
-    @SecurityRequirement(name = "Bearer Authentication")
-    public ResponseEntity<Void> logout(Authentication authentication,
-            @RequestHeader("Authorization") String authorization) {
-        getUserId(authentication);
-        authenticationService.logout(authorization.substring(7).trim());
-        org.springframework.security.core.context.SecurityContextHolder.clearContext();
-        return ResponseEntity.noContent().build();
-    }
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name="Bearer Authentication")
+    public void logout(
+        Authentication authentication,
+        @RequestHeader("Authorization") String header
+    ) {
+        auth.logout(header.substring(7).trim(), CurrentUser.id(authentication));
 
-    private UUID getUserId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof com.example.app.models.main.User user) || user.getId() == null) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        }
-        return user.getId();
+        SecurityContextHolder.clearContext();
     }
 }

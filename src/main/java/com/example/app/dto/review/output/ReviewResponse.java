@@ -1,3 +1,7 @@
 package com.example.app.dto.review.output;
-
-public record ReviewResponse() {}
+import java.util.UUID;
+public record ReviewResponse(
+    UUID id,
+    UUID reservationId,
+    Integer rating
+) {}

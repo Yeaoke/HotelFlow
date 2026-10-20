@@ -1,19 +1,11 @@
 package com.example.app.repos.main;
-
-import java.util.Optional;
-import java.util.UUID;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 import com.example.app.models.main.Room;
-
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
-
-public interface RoomRepository extends JpaRepository<Room, UUID> {
+import java.util.*;
+public interface RoomRepository extends JpaRepository<Room,UUID>,JpaSpecificationExecutor<Room> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM Room r WHERE r.id = :id")
+    @Query("select r from Room r where r.id=:id")
     Optional<Room> findByIdForUpdate(@Param("id") UUID id);
 }

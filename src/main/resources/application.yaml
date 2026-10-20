@@ -1,96 +1,77 @@
-server:
-  port: 8080
-
 spring:
+  application:
+    name: hotelflow
   profiles:
     active: ${PROFILE:dev}
-
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/reservation_info}
+    username: ${POSTGRES_USERNAME:postgres}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 12
+      connection-timeout: 10000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: 1
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+      connect-timeout: 3s
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+      mail.smtp.starttls.required: ${SMTP_STARTTLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 security:
   jwt:
     secret_key: ${SECRET_KEY}
-    access_token_expiration: ${ACCESS_TOKEN_EXPIRATION:36000000}
-    refresh_token_expiration: ${REFRESH_TOKEN_EXPIRATION:252000000}
-
-
----
-spring:
-  config:
-    activate:
-      on-profile: dev
-
-  datasource:
-    url: jdbc:postgresql://localhost:5432/reservation_info
-    username: ${POSTGRES_USERNAME}
-    password: ${POSTGRES_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-
-    hikari:
-      connection-timeout: 20000
-      minimum-idle: 5
-      maximum-pool-size: 12
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      pool-name: ReservationInfoPool
-
-  main:
-    allow-bean-definition-overriding: true
-
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-
-  jpa:
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-
-    hibernate:
-      ddl-auto: update
-
-    show-sql: true
+    access_token_expiration: ${ACCESS_TOKEN_EXPIRATION:900000}
+    refresh_token_expiration: ${REFRESH_TOKEN_EXPIRATION:604800000}
+  otp:
+    secret: ${OTP_SECRET}
+app:
+  mail:
+    from: ${SMTP_FROM:hotelflow@localhost}
+management:
+  endpoints:
+    web:
+      error:
+        include-message: never
+        include-stacktrace: never
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db,redis
+server:
+  port: 8080
+  shutdown: graceful
 
 logging:
   level:
-    com.example.app: DEBUG
-    org.springframework.security: DEBUG
-
-
----
-spring:
-  config:
-    activate:
-      on-profile: prod
-
-  datasource:
-    url: jdbc:postgresql://database:5432/reservation_info
-    username: ${POSTGRES_USERNAME}
-    password: ${POSTGRES_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-
-    hikari:
-      connection-timeout: 20000
-      minimum-idle: 5
-      maximum-pool-size: 12
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      pool-name: ReservationInfoPool
-
-  data:
-    redis:
-      host: ${REDIS_HOST:redis}
-      port: ${REDIS_PORT:6379}
-
-  jpa:
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-
-    hibernate:
-      ddl-auto: validate
-
-    show-sql: false
-
-logging:
-  level:
+    root: INFO
     com.example.app: INFO

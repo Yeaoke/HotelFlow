@@ -17,11 +17,12 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.Data;
+
 import lombok.NoArgsConstructor;
 
 @Entity
-@Data
+@lombok.Getter
+@lombok.Setter
 @NoArgsConstructor
 @Table(name = "Users")
 public class User implements UserDetails {
@@ -57,7 +58,7 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        return List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + (role == null ? UserRole.USER : role).name()));
     }
 
     @Override
@@ -80,3 +81,5 @@ public class User implements UserDetails {
         return true;
     }
 }
+
+

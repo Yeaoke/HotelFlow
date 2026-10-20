@@ -1,165 +1,147 @@
 package com.example.app.services;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import org.springframework.security.access.AccessDeniedException;
+import com.example.app.dto.room.input.RoomRequest;
+import com.example.app.dto.room.output.RoomResponse;
+import com.example.app.dto.PageResponse;
+import com.example.app.dto.ReservationStatus;
+import com.example.app.models.main.*;
+import com.example.app.repos.main.*;
+import com.example.app.exceptions.*;
+import com.example.app.mappers.RoomMapper;
+import jakarta.persistence.criteria.Predicate;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.example.app.dto.room.input.RoomRequest;
-import com.example.app.exceptions.RoomNotFoundException;
-import com.example.app.exceptions.UserNotFoundException;
-import com.example.app.models.main.Room;
-import com.example.app.models.main.User;
-import com.example.app.repos.main.RoomRepository;
-import com.example.app.repos.main.UserRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
-
-@Log4j2
-@Service
-@RequiredArgsConstructor
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
+import java.time.LocalDate;
+import java.util.*;
+@Service @RequiredArgsConstructor
 public class RoomService {
 
-    private final RoomRepository roomRepository;
-    private final UserRepository userRepository;
+    private final RoomRepository rooms;
+
+    private final UserRepository users;
 
     @Transactional
-    public Room createRoom(
-            RoomRequest dto,
-            UUID userId
+    public RoomResponse createRoom(
+        RoomRequest dto,
+        UUID userId
     ) {
-        if (dto == null) {
-            throw new IllegalArgumentException(
-                    "Room data can't be null"
-            );
-        }
+        Room room=new Room();
 
-        validateUserId(userId);
-        validatePrice(dto.price());
+        room.setOwner(users.findById(userId).orElseThrow(()->new UserNotFoundException("User not found")));
 
-        User owner = userRepository.findById(userId)
-                .orElseThrow(
-                        () -> new UserNotFoundException("User not found with id: " + userId)
-                );
+        RoomMapper.apply(room,dto);
 
-        log.info(
-                "Creating room: ownerId={}, thread={}",
-                userId,
-                Thread.currentThread().getName()
-        );
-
-        Room room = new Room();
-
-        room.setHomeType(dto.homeType());
-        room.setAddress(dto.address());
-        room.setHasTV(dto.hasTV());
-        room.setHasInternet(dto.hasInternet());
-        room.setHasKitchen(dto.hasKitchen());
-        room.setHasAirCon(dto.hasAirCon());
-        room.setPrice(dto.price());
-        room.setOwner(owner);
-        room.setLatitude(dto.latitude());
-        room.setLongitude(dto.longitude());
-
-        Room savedRoom = roomRepository.save(room);
-
-        log.info(
-                "Room created: id={}, ownerId={}",
-                savedRoom.getId(),
-                userId
-        );
-
-        return savedRoom;
+        return RoomMapper.toDto(rooms.saveAndFlush(room));
     }
-
-    @Transactional(readOnly = true)
-    public Optional<Room> getRoomById(UUID id) {
-
-        if (id == null) {
-            return Optional.empty();
-        }
-
-        return roomRepository.findById(id);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Room> getAllRooms() {
-        return roomRepository.findAll();
-    }
-
     @Transactional
-    public void deleteRoom(
-            UUID id,
-            UUID userId
+    public RoomResponse updateRoom(
+        UUID id,
+        RoomRequest dto,
+        UUID userId
     ) {
-        if (id == null) {
-            throw new RoomNotFoundException(
-                    "Room id can't be null"
-            );
-        }
+        Room room = owned(id,userId);
+        
+        RoomMapper.apply(room,dto);
 
-        validateUserId(userId);
-
-        log.info(
-                "Deleting room: id={}, userId={}",
-                id,
-                userId
-        );
-
-        Room room = roomRepository.findById(id)
-                .orElseThrow(
-                        () -> new RoomNotFoundException("Room not found with id: " + id)
-                );
-
-        checkOwnership(room, userId);
-
-        roomRepository.delete(room);
-
-        log.info(
-                "Room deleted: id={}, userId={}",
-                id,
-                userId
-        );
+        return RoomMapper.toDto(rooms.saveAndFlush(room));
     }
 
-    private void checkOwnership(
-            Room room,
-            UUID userId
+    @Transactional(readOnly=true)
+    public RoomResponse getRoomById(
+        UUID id
     ) {
-        if (room.getOwner() == null
-                || room.getOwner().getId() == null
-                || !room.getOwner().getId().equals(userId)) {
-
-            throw new AccessDeniedException(
-                    "You don't have access to this room"
-            );
-        }
+        return RoomMapper.toDto(rooms.findById(id).orElseThrow(() -> new RoomNotFoundException("Room not found")));
+    }
+    @Transactional public void deleteRoom(
+        UUID id,UUID userId
+    ) {
+        rooms.delete(owned(id,userId));
+        
+        rooms.flush();
     }
 
-    private void validateUserId(UUID userId) {
-        if (userId == null) {
-            throw new UserNotFoundException(
-                    "User id can't be null"
-            );
+    private Room owned(
+        UUID id,
+        UUID userId
+    ) {
+        Room room = rooms.findByIdForUpdate(id).orElseThrow(() -> new RoomNotFoundException("Room not found"));
+
+        if (!room.getOwner().getId().equals(userId)) {
+            throw new AccessDeniedException("Room belongs to another user");
         }
+
+        return room;
     }
 
-    private void validatePrice(Long price) {
-
-        if (price == null) {
-            throw new IllegalArgumentException(
-                    "Price can't be null"
-            );
+    @Transactional(readOnly=true)
+    public PageResponse<RoomResponse> search(
+        int page,
+        int size,
+        String sort,
+        String direction,
+        String homeType,
+        String address,
+        Long minPrice,
+        Long maxPrice,
+        Boolean internet,
+        LocalDate start,
+        LocalDate end
+    ) {
+        if (page < 0 || size < 1 || size > 100 || !Set.of("id", "price", "address", "homeType").contains(sort)) {
+            throw new IllegalArgumentException("Invalid pagination or sort");
         }
 
-        if (price < 0) {
-            throw new IllegalArgumentException(
-                    "Price can't be less than 0"
-            );
+        if (!Set.of("asc","desc").contains(direction.toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("Sort direction must be asc or desc");
         }
+        
+        if ((minPrice != null && minPrice < 0) || (maxPrice != null && maxPrice < 0) || (minPrice!=null && maxPrice!=null && minPrice>maxPrice)) {
+            throw new IllegalArgumentException("Invalid price range");
+        }
+        
+        if ((start==null)!=(end==null) || (start!=null && (start.isBefore(LocalDate.now()) || !start.isBefore(end)))) {
+            throw new IllegalArgumentException("Supply a valid start/end date pair");
+        }
+        
+        Specification<Room> filter = (root,query,cb) -> {
+            List<Predicate> p=new ArrayList<>();
+            
+            if (homeType!=null) {
+                p.add(cb.equal(root.get("homeType"), homeType));
+            }
+            if (address!=null) {
+                p.add(cb.like(cb.lower(root.get("address")), "%" + address.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%", '\\'));
+            }
+            if (minPrice!=null) {
+                p.add(cb.ge(root.get("price"), minPrice));
+            }
+            if (maxPrice!=null) {
+                p.add(cb.le(root.get("price"), maxPrice));
+            }
+            if (internet!=null) {
+                p.add(cb.equal(root.get("hasInternet"), internet));
+            }
+
+            if (start != null) {
+                var occupied = query.subquery(UUID.class);
+
+                var r = occupied.from(Reservation.class);
+
+                occupied.select(r.get("id")).where(cb.equal(r.get("room"), root), cb.notEqual(r.get("status"),ReservationStatus.CANCELED), cb.lessThan(r.get("startDate"),end),cb.greaterThan(r.get("endDate"),start));
+                
+                p.add(cb.not(cb.exists(occupied)));
+            }
+            return cb.and(p.toArray(Predicate[]::new));
+        };
+        Sort ordering=Sort.by(Sort.Direction.fromString(direction),sort);
+
+        if (!sort.equals("id")) {
+            ordering = ordering.and(Sort.by("id"));
+        }
+
+        return PageResponse.from(rooms.findAll(filter, PageRequest.of(page,size,ordering)).map(RoomMapper::toDto));
     }
 }

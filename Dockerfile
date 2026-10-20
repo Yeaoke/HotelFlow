@@ -1,32 +1,26 @@
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /app
 
-# Maven Wrapper и конфигурация Maven
-COPY .mvn/ .mvn/
+COPY .mvn .mvn
 COPY mvnw pom.xml ./
 
-# Разрешение на запуск Maven Wrapper
 RUN chmod +x mvnw
 
-# Загрузка зависимостей
-RUN ./mvnw dependency:go-offline -B
+COPY src src
 
-# Копируем исходный код
-COPY src ./src
+RUN ./mvnw -B -DskipTests package
 
-# Сборка приложения
-RUN ./mvnw clean package -DskipTests -B
-
-
-# Runtime
 FROM eclipse-temurin:21-jre
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* && useradd --system --uid 10001 app
 
 WORKDIR /app
 
-# Копируем собранный JAR
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build --chown=app:app /app/target/*.jar app.jar
+
+USER app
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","app.jar"]

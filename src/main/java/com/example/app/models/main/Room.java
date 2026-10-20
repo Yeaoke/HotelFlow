@@ -10,11 +10,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Data;
+
 import lombok.NoArgsConstructor;
 
 @Entity
-@Data
+@lombok.Getter
+@lombok.Setter
 @NoArgsConstructor
 @Table(name = "Rooms")
 public class Room {
@@ -54,3 +55,4 @@ public class Room {
     @Column(name = "longitude")
     private Double longitude;
 }
+

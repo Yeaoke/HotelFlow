@@ -1,182 +1,92 @@
 package com.example.app.services;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import org.springframework.security.access.AccessDeniedException;
+import com.example.app.dto.review.input.ReviewRequest;
+import com.example.app.dto.review.output.ReviewResponse;
+import com.example.app.exceptions.*;
+import com.example.app.models.main.*;
+import com.example.app.repos.main.*;
+import com.example.app.mappers.ReviewMapper;
+import com.example.app.policies.ReservationPolicy;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.example.app.dto.review.input.ReviewRequest;
-import com.example.app.exceptions.ReservationNotFoundException;
-import com.example.app.exceptions.ReviewNotFoundException;
-import com.example.app.models.main.Reservation;
-import com.example.app.models.main.Review;
-import com.example.app.repos.main.ReservationRepository;
-import com.example.app.repos.main.ReviewRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
-
-@Log4j2
-@Service
-@RequiredArgsConstructor
+import org.springframework.security.access.AccessDeniedException;
+import java.util.*;
+@Service @RequiredArgsConstructor
 public class ReviewService {
 
-    private final ReviewRepository reviewRepository;
-    private final ReservationRepository reservationRepository;
+    private final ReviewRepository reviews;
+    private final ReservationRepository reservations;
 
     @Transactional
-    public Review createReview(
-            ReviewRequest dto,
-            UUID reservationId,
-            UUID userId
+    public ReviewResponse createReview(
+        ReviewRequest dto,
+        UUID reservationId,
+        UUID userId
     ) {
-        if (reservationId == null) {
-            throw new ReservationNotFoundException(
-                    "Reservation id can't be null"
-            );
+        Reservation r = owned(reservationId,userId,true);
+        
+        ReservationPolicy.requireReviewable(r);
+        
+        if (dto == null || dto.rating() == null || dto.rating() < 1 || dto.rating() > 5) {
+            throw new IllegalArgumentException("Rating must be between 1 and 5");
         }
-
-        if (userId == null) {
-            throw new IllegalArgumentException(
-                    "User id can't be null"
-            );
+        
+        if (reviews.existsByReservationId(reservationId)) {
+            throw new ConflictException("Reservation already has a review");
         }
-
-        if (dto == null) {
-            throw new IllegalArgumentException(
-                    "Review data can't be null"
-            );
-        }
-
-        log.info(
-                "Creating review: reservationId={}, userId={}",
-                reservationId,
-                userId
-        );
-
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(
-                        () -> new ReservationNotFoundException("Reservation not found with id: " + reservationId)
-                );
-
-        checkOwner(reservation, userId);
-
-        validateRating(dto.rating());
-
+        
         Review review = new Review();
 
-        review.setReservation(reservation);
+        review.setReservation(r);
+
         review.setRating(dto.rating());
 
-        Review savedReview = reviewRepository.save(review);
-
-        log.info(
-                "Review created: id={}, reservationId={}, userId={}",
-                savedReview.getId(),
-                reservationId,
-                userId
-        );
-
-        return savedReview;
+        return ReviewMapper.toDto(reviews.saveAndFlush(review));
     }
+    @Transactional(readOnly=true)
+    public ReviewResponse getReviewById(
+        UUID reservationId,
+        UUID reviewId,
+        UUID userId
+    ) {
+        owned(reservationId,userId,false);
 
-    @Transactional(readOnly = true)
-    public Optional<Review> getReviewById(UUID id) {
-
-        if (id == null) {
-            return Optional.empty();
-        }
-
-        log.info(
-                "Getting review: id={}",
-                id
-        );
-
-        return reviewRepository.findById(id);
+        return ReviewMapper.toDto(reviews.findByIdAndReservationId(reviewId,reservationId)
+                .orElseThrow(() -> new ReviewNotFoundException("Review not found for this reservation")));
     }
+    @Transactional(readOnly=true)
+    public List<ReviewResponse> getAllReviews(
+        UUID reservationId,
+        UUID userId
+    ) {
+        owned(reservationId,userId,false);
 
-    @Transactional(readOnly = true)
-    public List<Review> getAllReviews() {
-
-        log.info("Getting all reviews");
-
-        return reviewRepository.findAll();
+        return reviews.findAllByReservationId(reservationId).stream().map(ReviewMapper::toDto).toList();
     }
-
     @Transactional
     public void deleteReview(
-            UUID id,
-            UUID userId
+        UUID reservationId,
+        UUID reviewId,
+        UUID userId
     ) {
-        if (id == null) {
-            throw new ReviewNotFoundException(
-                    "Review id can't be null"
-            );
-        }
+        owned(reservationId,userId,true);
 
-        if (userId == null) {
-            throw new IllegalArgumentException(
-                    "User id can't be null"
-            );
-        }
+        Review review = reviews.findByIdAndReservationId(reviewId,reservationId)
+                    .orElseThrow(()->new ReviewNotFoundException("Review not found for this reservation"));
 
-        log.info(
-                "Deleting review: id={}, userId={}",
-                id,
-                userId
-        );
-
-        Review review = reviewRepository.findById(id)
-                .orElseThrow(
-                        () -> new ReviewNotFoundException("Review not found with id: " + id)
-                );
-
-        Reservation reservation = review.getReservation();
-
-        if (reservation == null) {
-            throw new ReservationNotFoundException(
-                    "Reservation for review not found"
-            );
-        }
-
-        checkOwner(reservation, userId);
-
-        reviewRepository.delete(review);
-
-        log.info(
-                "Review deleted: id={}, userId={}",
-                id,
-                userId
-        );
+        reviews.delete(review);
     }
-
-    private void checkOwner(
-            Reservation reservation,
-            UUID userId
+    private Reservation owned(
+        UUID id,
+        UUID userId,
+        boolean lock
     ) {
-        if (reservation.getUser() == null || reservation.getUser().getId() == null || !reservation.getUser().getId().equals(userId)) {
+        Reservation r = (lock?reservations.findByIdForUpdate(id):reservations.findById(id))
+                    .orElseThrow(()->new ReservationNotFoundException("Reservation not found"));
 
-            throw new AccessDeniedException(
-                    "You don't have access to this reservation"
-            );
+        if (!r.getUserId().equals(userId)) {
+            throw new AccessDeniedException("Reservation belongs to another user");
         }
-    }
-
-    private void validateRating(Integer rating) {
-
-        if (rating == null) {
-            throw new IllegalArgumentException(
-                    "Rating can't be null"
-            );
-        }
-
-        if (rating < 1 || rating > 5) {
-            throw new IllegalArgumentException(
-                    "Rating must be between 1 and 5"
-            );
-        }
+        return r;
     }
 }

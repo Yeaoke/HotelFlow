@@ -1,24 +1,16 @@
 package com.example.app.dto.auth.login.input;
-
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
-
+import jakarta.validation.constraints.*;
 public record RegisterRequest(
-    @NotNull(message = "username cann't be null")
+    @NotBlank
+    @Pattern(regexp="[A-Za-z0-9_.-]{3,64}")
     String username,
 
-    @Email(message = "input correct email")
-    @NotNull
+    @NotBlank
+    @Email
+    @Size(max=254)
     String email,
 
-    @Pattern(
-        regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$",
-        message = "Пароль должен содержать: минимум 8 символов, цифру, заглавную и строчную букву, спецсимвол (@#$%^&+=!)"
-    )
     @NotBlank
-    @Size(min = 8)
+    @Size(min=8,max=72)
     String password
 ) {}

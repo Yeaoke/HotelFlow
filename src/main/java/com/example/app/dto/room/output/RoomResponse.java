@@ -1,6 +1,8 @@
 package com.example.app.dto.room.output;
-
+import java.util.UUID;
 public record RoomResponse(
+    UUID id,
+
     String homeType,
 
     String address,
@@ -16,6 +18,6 @@ public record RoomResponse(
     Long price,
 
     Double latitude,
-
+    
     Double longitude
 ) {}

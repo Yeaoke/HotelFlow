@@ -1,268 +1,66 @@
 package com.example.app.controllers;
-
 import com.example.app.dto.ReservationStatus;
 import com.example.app.dto.reservation.input.ReservationRequest;
 import com.example.app.dto.reservation.output.ReservationResponse;
-import com.example.app.models.main.Reservation;
 import com.example.app.services.ReservationService;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-
+import com.example.app.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.UUID;
-
-@RequiredArgsConstructor
-@RestController
-@RequestMapping("/api/reservations")
-@SecurityRequirement(name = "Bearer Authentication")
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.util.*;
+@RestController @RequestMapping("/api/reservations") @RequiredArgsConstructor
+@SecurityRequirement(name="Bearer Authentication")
 public class ReservationController {
-
-    private final ReservationService reservationService;
-
-    @Operation(
-            summary = "Получить список бронирований",
-            description = "Возвращает список бронирований текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Бронирования успешно получены"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            )
-    })
+    
+    private final ReservationService service;
+    
     @GetMapping
-    public List<ReservationResponse> getAllReservations(
-            Authentication authentication
+    public List<ReservationResponse> all(
+        Authentication auth
     ) {
-        UUID userId = getUserId(authentication);
-
-        return reservationService.getAllReservations(userId)
-                .stream()
-                .map(this::toDto)
-                .toList();
+        return service.getAllReservations(CurrentUser.id(auth));
     }
-
-    @Operation(
-            summary = "Получить бронирование по ID",
-            description = "Возвращает бронирование с указанным идентификатором"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Бронирование успешно получено"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к данному бронированию"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Бронирование не найдено"
-            )
-    })
+    
     @GetMapping("/{id}")
-    public ResponseEntity<ReservationResponse> getReservationById(
-            @PathVariable UUID id,
-            Authentication authentication
+    public ReservationResponse get(
+        @PathVariable UUID id,
+        Authentication auth
     ) {
-        UUID userId = getUserId(authentication);
-
-        return reservationService.findReservation(id, userId)
-                .map(this::toDto)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return service.getReservationById(id, CurrentUser.id(auth));
     }
-
-    @Operation(
-            summary = "Создать бронирование",
-            description = "Создаёт бронирование от имени текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Бронирование успешно создано"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректные данные бронирования"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Пользователь или номер не найдены"
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Номер уже забронирован"
-            )
-    })
+    
     @PostMapping
-    public ResponseEntity<ReservationResponse> createReservation(
-            Authentication authentication,
-            @RequestBody @Valid ReservationRequest dto
+    public ResponseEntity<ReservationResponse> create(
+        @Valid @RequestBody ReservationRequest dto,
+        Authentication auth
     ) {
-        UUID userId = getUserId(authentication);
+        var result = service.createReservation(dto,CurrentUser.id(auth));
 
-        Reservation reservation =
-                reservationService.createReservation(dto, userId);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(toDto(reservation));
+        return ResponseEntity.created(java.net.URI.create("/api/reservations/"+result.id())).body(result);
     }
-
-    @Operation(
-            summary = "Обновить бронирование",
-            description = "Обновляет бронирование текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Бронирование успешно обновлено"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректные данные бронирования"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к данному бронированию"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Бронирование не найдено"
-            )
-    })
+    
     @PutMapping("/{id}")
-    public ResponseEntity<ReservationResponse> updateReservation(
-            @PathVariable UUID id,
-            Authentication authentication,
-            @RequestBody @Valid ReservationRequest dto
+    public ReservationResponse update(
+        @PathVariable UUID id,
+        @Valid @RequestBody ReservationRequest dto,
+        Authentication auth
     ) {
-        UUID userId = getUserId(authentication);
-
-        Reservation reservation =
-                reservationService.updateReservation(id, dto, userId);
-
-        return ResponseEntity.ok(toDto(reservation));
+        return service.updateReservation(id, dto,CurrentUser.id(auth));
     }
-
-    @Operation(
-            summary = "Обновить статус бронирования",
-            description = "Обновляет статус бронирования текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Статус бронирования успешно обновлён"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректный статус бронирования"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к данному бронированию"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Бронирование не найдено"
-            )
-    })
+    
     @PatchMapping("/{id}/status")
-    public ResponseEntity<ReservationResponse> updateReservationStatus(
-            @PathVariable UUID id,
-            @RequestParam ReservationStatus status,
-            Authentication authentication
+    public ReservationResponse status(@PathVariable UUID id,@RequestParam ReservationStatus status,Authentication auth) {
+        return service.updateReservationStatus(id,status,CurrentUser.id(auth));
+    }
+    
+    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+        @PathVariable UUID id,
+        Authentication auth
     ) {
-        UUID userId = getUserId(authentication);
-
-        Reservation reservation =
-                reservationService.updateReservationStatus(
-                        id,
-                        status,
-                        userId
-                );
-
-        return ResponseEntity.ok(toDto(reservation));
-    }
-
-    @Operation(
-            summary = "Удалить бронирование",
-            description = "Удаляет бронирование текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "204",
-                    description = "Бронирование успешно удалено"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к данному бронированию"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Бронирование не найдено"
-            )
-    })
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Void> deleteReservation(
-            @PathVariable UUID id,
-            Authentication authentication
-    ) {
-        UUID userId = getUserId(authentication);
-
-        reservationService.deleteReservation(id, userId);
-
-        return ResponseEntity.noContent().build();
-    }
-
-    private UUID getUserId(Authentication authentication) {
-        return UUID.fromString(authentication.getName());
-    }
-
-    private ReservationResponse toDto(Reservation reservation) {
-        return new ReservationResponse(
-                reservation.getUserId(),
-                reservation.getRoomId(),
-                reservation.getStartDate(),
-                reservation.getEndDate(),
-                reservation.getPrice(),
-                reservation.getStatus()
-        );
+        service.deleteReservation(id,CurrentUser.id(auth));
     }
 }

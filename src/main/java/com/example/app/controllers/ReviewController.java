@@ -1,163 +1,53 @@
 package com.example.app.controllers;
-
 import com.example.app.dto.review.input.ReviewRequest;
-import com.example.app.models.main.Review;
+import com.example.app.dto.review.output.ReviewResponse;
 import com.example.app.services.ReviewService;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-
+import com.example.app.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.UUID;
-
-@RequiredArgsConstructor
-@RestController
-@RequestMapping("/api/reservations/{reservationId}/reviews")
-@SecurityRequirement(name = "Bearer Authentication")
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.util.*;
+@RestController @RequestMapping("/api/reservations/{reservationId}/reviews") @RequiredArgsConstructor
+@SecurityRequirement(name="Bearer Authentication")
 public class ReviewController {
 
-    private final ReviewService reviewService;
+    private final ReviewService service;
 
-    @Operation(
-        summary = "Создать отзыв",
-        description = "Создаёт отзыв к бронированию текущего авторизованного пользователя")
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "201",
-            description = "Отзыв успешно создан"
-        ),
-        @ApiResponse(
-            responseCode = "400",
-            description = "Некорректные данные отзыва"
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Пользователь не авторизован"
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Нет доступа к данному бронированию"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Бронирование не найдено"
-        )
-    })
     @PostMapping
-    public ResponseEntity<Review> createReview(
-            @PathVariable UUID reservationId,
-            Authentication authentication,
-            @RequestBody @Valid ReviewRequest dto
+    public ResponseEntity<ReviewResponse> create(
+        @PathVariable UUID reservationId,
+        @Valid @RequestBody ReviewRequest dto,
+        Authentication auth
     ) {
-        UUID userId = getUserId(authentication);
+        var result = service.createReview(dto,reservationId,CurrentUser.id(auth));
 
-        Review createdReview = reviewService.createReview(dto, reservationId, userId);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdReview);
+        return ResponseEntity.created(java.net.URI.create("/api/reservations/"+reservationId+"/reviews/"+result.id())).body(result);
     }
-
-    @Operation(
-        summary = "Получить отзыв",
-        description = "Возвращает отзыв по указанному идентификатору")
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200",
-            description = "Отзыв успешно получен"
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Пользователь не авторизован"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Отзыв не найден"
-        )
-    })
+    
     @GetMapping("/{reviewId}")
-    public ResponseEntity<Review> getReviewById(
-            @PathVariable UUID reservationId,
-            @PathVariable UUID reviewId
+    public ReviewResponse get(
+        @PathVariable UUID reservationId,
+        @PathVariable UUID reviewId,
+        Authentication auth
     ) {
-        var review = reviewService.getReviewById(reviewId);
-        if (review.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        if (review.get().getReservation() == null
-                || !reservationId.equals(review.get().getReservation().getId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(review.get());
+        return service.getReviewById(reservationId,reviewId,CurrentUser.id(auth));
+    }
+    @GetMapping public List<ReviewResponse> all(
+        @PathVariable UUID reservationId,
+        Authentication auth
+    ) {
+        return service.getAllReviews(reservationId,CurrentUser.id(auth));
     }
 
-    @Operation(
-        summary = "Получить список отзывов",
-        description = "Возвращает список всех отзывов")
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200",
-            description = "Отзывы успешно получены"
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Пользователь не авторизован"
-        )
-    })
-    @GetMapping
-    public ResponseEntity<List<Review>> getAllReviews(
-            @PathVariable UUID reservationId
+    @DeleteMapping("/{reviewId}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+        @PathVariable UUID reservationId,
+        @PathVariable UUID reviewId,
+        Authentication auth
     ) {
-        return ResponseEntity.ok(reviewService.getAllReviews());
-    }
-
-    @Operation(
-        summary = "Удалить отзыв",
-        description = "Удаляет отзыв текущего авторизованного пользователя")
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "204",
-            description = "Отзыв успешно удалён"
-        ),
-        @ApiResponse(
-            responseCode = "401",
-            description = "Пользователь не авторизован"
-        ),
-        @ApiResponse(
-            responseCode = "403",
-            description = "Нет доступа к данному отзыву"
-        ),
-        @ApiResponse(
-            responseCode = "404",
-            description = "Отзыв не найден"
-        )
-    })
-    @DeleteMapping("/{reviewId}")
-    public ResponseEntity<Void> deleteReview(
-            @PathVariable UUID reservationId,
-            @PathVariable UUID reviewId,
-            Authentication authentication
-    ) {
-        UUID userId = getUserId(authentication);
-        reviewService.deleteReview(reviewId, userId);
-
-        return ResponseEntity.noContent().build();
-    }
-
-    private UUID getUserId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof com.example.app.models.main.User user) || user.getId() == null) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        }
-        return user.getId();
+        service.deleteReview(reservationId,reviewId,CurrentUser.id(auth));
     }
 }
-

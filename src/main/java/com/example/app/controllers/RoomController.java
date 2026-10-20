@@ -1,175 +1,69 @@
 package com.example.app.controllers;
-
 import com.example.app.dto.room.input.RoomRequest;
 import com.example.app.dto.room.output.RoomResponse;
-import com.example.app.models.main.Room;
+import com.example.app.dto.PageResponse;
 import com.example.app.services.RoomService;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-
+import com.example.app.security.CurrentUser;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.time.LocalDate;
 import java.util.UUID;
-
-@RequiredArgsConstructor
-@RestController
-@RequestMapping("/api/rooms")
-@SecurityRequirement(name = "Bearer Authentication")
+@RestController @RequestMapping("/api/rooms") @RequiredArgsConstructor
+@SecurityRequirement(name="Bearer Authentication")
 public class RoomController {
 
-    private final RoomService roomService;
+    private final RoomService service;
 
-    @Operation(
-            summary = "Получить список всех комнат",
-            description = "Возвращает список доступных комнат"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Комнаты успешно получены"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            )
-    })
     @GetMapping
-    public ResponseEntity<List<RoomResponse>> getAllRooms() {
-
-        List<RoomResponse> rooms = roomService.getAllRooms()
-                .stream()
-                .map(this::convertToResponseDTO)
-                .toList();
-
-        return ResponseEntity.ok(rooms);
+    public PageResponse<RoomResponse> search(
+        @RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size,
+        @RequestParam(defaultValue="price") String sort,@RequestParam(defaultValue="asc") String direction,
+        @RequestParam(required=false) String homeType,@RequestParam(required=false) String address,
+        @RequestParam(required=false) Long minPrice,@RequestParam(required=false) Long maxPrice,
+        @RequestParam(required=false) Boolean internet,
+        @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate start,
+        @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate end
+    ) {
+        return service.search(page, size, sort, direction, homeType, address, minPrice, maxPrice, internet, start, end);
     }
 
-    @Operation(
-            summary = "Получить комнату по ID",
-            description = "Возвращает информацию о комнате"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Комната найдена"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Комната не найдена"
-            )
-    })
     @GetMapping("/{id}")
-    public ResponseEntity<RoomResponse> getRoomById(
-            @PathVariable UUID id
+    public RoomResponse get(
+        @PathVariable UUID id
     ) {
+        return service.getRoomById(id);
+    }
+    
+    @PostMapping
+    public ResponseEntity<RoomResponse> create(
+        @Valid @RequestBody RoomRequest dto,
+        Authentication auth
+    ) {
+        var result = service.createRoom(dto,CurrentUser.id(auth));
 
-        return roomService.getRoomById(id).map(this::convertToResponseDTO).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.created(java.net.URI.create("/api/rooms/"+result.id())).body(result);
     }
 
-    @Operation(
-            summary = "Создать комнату",
-            description = "Создаёт комнату от имени текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Комната успешно создана"
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Некорректные данные комнаты"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Пользователь не найден"
-            )
-    })
-    @PostMapping("/create")
-    public ResponseEntity<RoomResponse> createRoom(
-            Authentication authentication,
-            @Valid @RequestBody RoomRequest dto
+    @PutMapping("/{id}")
+    public RoomResponse update(
+        @PathVariable UUID id,
+        @Valid @RequestBody RoomRequest dto,
+        Authentication auth
     ) {
-
-        UUID userId = getUserId(authentication);
-
-        Room room = roomService.createRoom(dto, userId);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(convertToResponseDTO(room));
+        return service.updateRoom(id,dto,CurrentUser.id(auth));
     }
-
-    @Operation(
-            summary = "Удалить комнату",
-            description = "Удаляет комнату текущего авторизованного пользователя"
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "204",
-                    description = "Комната успешно удалена"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Пользователь не авторизован"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Нет доступа к комнате"
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Комната не найдена"
-            )
-    })
+    
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRoom(
-            @PathVariable UUID id,
-            Authentication authentication
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+        @PathVariable UUID id,
+        Authentication auth
     ) {
-
-        UUID userId = getUserId(authentication);
-
-        roomService.deleteRoom(id, userId);
-
-        return ResponseEntity.noContent().build();
-    }
-
-    private UUID getUserId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof com.example.app.models.main.User user) || user.getId() == null) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED);
-        }
-        return user.getId();
-    }
-
-    private RoomResponse convertToResponseDTO(Room room) {
-
-        return new RoomResponse(
-                room.getHomeType(),
-                room.getAddress(),
-                room.getHasTV(),
-                room.getHasInternet(),
-                room.getHasKitchen(),
-                room.getHasAirCon(),
-                room.getPrice(),
-                room.getLatitude(),
-                room.getLongitude()
-        );
+        service.deleteRoom(id,CurrentUser.id(auth));
     }
 }
