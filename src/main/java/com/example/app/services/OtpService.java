@@ -1,5 +1,7 @@
 package com.example.app.services;
 import com.example.app.exceptions.RateLimitException;
+import com.example.app.repos.main.VerificationMailerRepository;
+
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,11 +16,11 @@ public class OtpService {
 
     private final StringRedisTemplate redis;
     
-    private final VerificationMailer mailer;
+    private final VerificationMailerRepository mailer;
 
     private final byte[] pepper;
 
-    private final SecureRandom random=new SecureRandom();
+    private final SecureRandom random = new SecureRandom();
 
     private static final DefaultRedisScript<Long> ISSUE = new DefaultRedisScript<>(
         """
@@ -50,7 +52,7 @@ public class OtpService {
 
     public OtpService(
         StringRedisTemplate redis,
-        VerificationMailer mailer,
+        VerificationMailerRepository mailer,
         @Value("${security.otp.secret}") String secret
     ) {
         if (secret.length() < 32) {
@@ -66,17 +68,15 @@ public class OtpService {
         UUID userId,String email,String ip
     ) {
         String code = String.format(Locale.ROOT,"%06d",random.nextInt(1_000_000));
-
         String key = "otp:" + userId;
 
         Long allowed=redis.execute(ISSUE,List.of(key, "otp:cooldown:" + userId, "otp:email:"  +digest(email.toLowerCase(Locale.ROOT)), "otp:ip:" + digest(ip)), digest(userId + ":" + code));
-        
         if (!Long.valueOf(1).equals(allowed)) {
             throw new RateLimitException();
         }
         
         try {
-            mailer.send(email,code);
+            mailer.send(email, code);
         } catch (RuntimeException e) {
             redis.delete(key);
             throw e;

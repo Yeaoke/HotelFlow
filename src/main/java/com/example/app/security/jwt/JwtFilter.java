@@ -1,6 +1,5 @@
 package com.example.app.security.jwt;
 import com.example.app.services.AccessTokenService;
-import com.example.app.exceptions.ApiError;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -18,7 +17,6 @@ public class JwtFilter extends OncePerRequestFilter {
     private final JwtService jwt;
     private final AccessTokenService access;
     @Override protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Public auth endpoints authenticate their own credentials, including refresh.
         return "POST".equals(request.getMethod()) && java.util.Set.of(
             "/api/auth/login","/api/auth/register","/api/auth/register/verify",
             "/api/auth/register/resend","/api/auth/refresh").contains(request.getServletPath());

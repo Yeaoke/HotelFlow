@@ -4,13 +4,14 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.example.app.exceptions.DeliveryException;
+import com.example.app.repos.main.VerificationMailerRepository;
 @Service
-public class SmtpVerificationMailer implements VerificationMailer {
+public class SmtpVerificationMailer implements VerificationMailerRepository {
     
     private final JavaMailSender sender;
     private final String from;
     
-    public SmtpVerificationMailer(JavaMailSender sender,@Value("${app.mail.from}") String from) {
+    public SmtpVerificationMailer(JavaMailSender sender, @Value("${app.mail.from}") String from) {
         this.sender=sender; this.from=from;
     }
     
